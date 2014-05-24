@@ -48,7 +48,7 @@ CHAPTERS = [
   (u"Optimization Patterns", u'Низкоуровневая оптимизация'),
   (u"Data Locality", u"Data Locality"),
   (u"Dirty Flag", u"Dirty Flag"),
-  (u"Object Pool", u"Object Pool"),
+  (u"Object Pool", u"Пул объектов"),
   (u"Spatial Partition", u"Spatial Partition")
 ]
 

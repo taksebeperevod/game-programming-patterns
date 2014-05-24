@@ -1,10 +1,9 @@
-^title Object Pool
+^title Пул объектов
 ^section Низкоуровневая оптимизация
 
-## Intent
+## Общая мысль
 
-*Improve performance and memory use by reusing objects from a fixed
-pool instead of allocating and freeing them individually.*
+*Улучшить быстродействие и оптимизировать работу с памятью путем переиспользования объектов из пула фиксированного размера вместо того, чтобы каждый раз создавать и уничтожать их порознь.*
 
 ## Motivation
 
