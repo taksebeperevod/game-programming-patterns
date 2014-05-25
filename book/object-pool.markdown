@@ -5,41 +5,21 @@
 
 *Улучшить быстродействие и оптимизировать работу с памятью путем переиспользования объектов из пула фиксированного размера вместо того, чтобы каждый раз создавать и уничтожать их порознь.*
 
-## Motivation
+## Предыстория
 
-We're working on the visual effects for our game. When the hero casts
-a spell, we want a shimmer of sparkles to burst across the screen.
-This calls for a *particle system*: an engine that spawns little
-sparkly graphics and animates them until they wink out of existence.
+Мы работаем над визуальными эффектами для нашей игры. Когда герой наносит заклинание, сноп искр должен рассыпаться по экрану. Это задача для *системы частиц*: движок, который выпускает маленькие картинки искр и передвигает их, пока они не потухнут.
 
-Since a single wave of the wand could cause hundreds of particles to
-be spawned, our system needs to be able to create them very quickly.
-More importantly, we need to make sure that creating and destroying
-these particles doesn't cause *memory fragmentation*.
+Поскольку одиночный взмах волшебной палочки может вызвать сотни искр, наша система должна быть способна очень быстро создавать и уничтожать эти частицы и при этом не вызывать дефрагментацию памяти.
 
-### The curse of fragmentation
+### Фрагментация -- это плохо
 
-Programming for a game console like the XBox 360 is closer to embedded
-programming than conventional PC programming in many ways. Like
-embedded programming, console games must run continuously for a very
-long time without crashing or leaking memory and efficient compacting
-memory managers are rarely available. In this environment memory
-fragmentation is deadly.
+Программирование для консолей, таких как XBox 360, больше похоже на программирование для встроенных устройств, чем на программирование для обычных компьютеров. Игры для консолей обязаны долгое время работать без сбоев и утечек памяти, а эффективные менеджеры памяти редко попадаются на пути. В этом случае фрагментация памяти -- смерти подобно.
 
-Fragmentation means the free space in our heap is <span name="park">broken</span> into smaller
-pieces of memory instead of one large open block. The
-*total* memory available may be large, but the largest
-*contiguous* region might be painfully small. Say we've got
-fourteen bytes free, but it's fragmented into two seven-byte pieces with a
-chunk of in-use memory between them. If we try to allocate a twelve-byte
-object, we'll fail. No more sparklies onscreen.
+Фрагментация означает, что свободное место в куче <span name="park">разбивается</span> на маленькие кусочки памяти, вместо одного большого свободного блока. *Общий*  объем свободной памяти может быть большой, но самый большой *непрерывный* регион может быть ужасно маленьким. Например, может быть 14 байтов свободно, но они состоят из двух 7-байтных кусков с большим разрывом между собой. Если мы захотим выделить 12 байт, то потерпим неудачу. И все, никаких звездочек больше на экране.
 
 <aside name="park">
 
-It's like trying to parallel park on a busy street where the
-already parked cars are spread out a bit too far. If
-they'd bunch up, there would be room, but the free
-space is *fragmented* into bits of open curb between half a dozen cars.
+Это как парковаться на улице, где уже есть куча припаркованных автомобилей. Если бы их сдвинуть вплотную, то место быстро бы нашлось. Но машины стоят слишком широко, и втиснуться просто некуда.
 
 </aside>
 
@@ -49,284 +29,147 @@ space is *fragmented* into bits of open curb between half a dozen cars.
 
 <aside name="heap">
 
-Here's how a heap becomes fragmented, and how it can cause an
-allocation to fail even where there's theoretically enough memory
-available.
+Тут объясняется, как память становиться фрагментированной, и как можно потерпеть неудачу, пытаясь разместить объект, для которого, вроде бы, хватает места.
 
 </aside>
 
-Even if fragmentation is infrequent, it can still <span name="soak">gradually</span> reduce the
-heap to an unusable foam of open holes and filled-in crevices,
-ultimately hosing the game completely.
+Даже если фрагментация несильная, она все равно может <span name="soak">постепенно</span> превратить память в бесполезный кусок сыра с открытыми дырками, что повредит всей игре.
 
 <aside name="soak">
 
-Most console makers require games to pass "soak tests"
-where they leave the game running in demo mode for several days. If
-the game crashes, they don't allow it to ship. While soak tests
-sometimes fail because of a rarely-occurring bug, it's usually
-creeping fragmentation or memory leakage that brings the game down.
+Разработчики для консолей проводят тесты, в которых они оставляют игру запущенной на несколько дней. Если игра падает, то её просто не выпускают. Хотя игра может упасть из-за редко воспроизводящегося бага, чаще всего именно чрезмерная фрагментация или утечка памяти приводят к сбою.
 
 </aside>
 
-### The best of both worlds
+### Берем лучшее от всех
 
-Because of fragmentation, and because allocation may be slow, games are very
-careful about when and how they manage memory. A simple solution is
-often best: grab a big chunk of memory when the game starts and don't
-free it until the game ends. But this is a pain for systems where we
-need to create and destroy things while the game is running.
+Из-за фрагментации, и ещё потому что выделение памяти может быть медленной, игры заботяться о том как и когда они управляют памятью. Простое решение обычно лучше: просто выделяем себе сразу большой кусок памяти, когда игра запускается и не отпускаем его, пока она не закончится. Но это не подходит для систем, где бы должны выделять и освобождать память во время игры.
 
-An object pool gives us the best of both worlds: to the memory
-manager, we're just allocating one big hunk of memory up front and not
-freeing it while the game is playing. To the users of the pool, we
-can freely allocate and deallocate objects to our heart's content.
+Пул объектов позволяет пользоваться плюсами обоих подходов: со стороны менеджера памяти мы выделяем один большой кусок памяти и не отпускаем, пока игра идет. А для пользователей пула объектов мы будем прозрачно создавать и уничтожать объекты.
 
-## The Pattern
+## Принцип работы
 
-Define a **pool** class that maintains a collection of **reusable
-objects**. Each object supports an **"in use" query** to
-tell if it is currently "alive." When the pool is
-initialized, it creates the entire collection of objects up front
-(usually in a single contiguous allocation) and initializes them all
-to the "not in use" state.
+Есть **класс пула**, который содержит коллекцию **используемых объектов**. У каждый объекта есть **статус**, который говорит нам, занят ли этот объект. Когда пул инициализируется, он создает коллекцию объектов заранее и ставит им все статус "свободен".
 
-When you want a new object, ask the pool for one. It finds an
-available object, initializes it to "in use" and returns
-it. When the object is no longer needed, it is set back to the
-"not in use" state. This way, objects can be freely
-created and destroyed without needing to allocate memory or other
-resources.
+Когда вам нужен новый объект, вы просите пул отдать его вам. Он находит свободный объект, ставит ему статус "занят" и возвращает вам. Если объект больше не нужен, ему опять ставится статус "свободен". Таким образом, объекты могут быть заняты и освобождены без реального выделения памяти или других ресурсов.
 
-## When to Use It
+## Когда это использовать
 
-This pattern is used widely in games for obvious things like game
-entities and visual effects, but also for less visible data structures
-such as currently playing sounds. Use Object Pool when:
+Этот паттерн часто используется в играх не только для визуальных эффектов и игровых объектов, но и для невидимых структур, таких как звуки. Используйте пул, если:
 
-*   You need to frequently create and destroy objects.
+*   Нужно часто создавать и уничтожать объекты.
 
-*   They are similar in size.
+*   Все объекты одинакового размера.
 
-*   Allocating them on the heap is slow or could lead to memory
-    fragmentation.
+*   Выделение памяти для объекта происходит медленно или может привести к фрагментации памяти.
 
-*   Each object encapsulates a resource such as a database or network
-    connection that is slow to acquire and could be reused.
+*   Каждый объект содержит в себе доступ к ресурсу, например соединение с базой данных или сетью, который медленно открывается и может быть переиспользован.
 
-## Keep in Mind
+## Что нужно помнить
 
-You normally rely on a garbage collector or just `malloc()` and `free()` to handle memory management for you. By using an object pool, you're saying, "I know better how these bytes should be handled." That means the onus is on you to deal with this pattern's limitations.
+Обычно можно положиться на сборщик мусора или использовать `malloc()` и `free()` для работы с памятью. Но с помощью пула объектов, вы как бы говорите, что "я знаю лучше, как эта память должна быть использована". Это значит, что вы сами будете решать все проблемы.
 
-### The pool may waste memory on unneeded objects
+### Можно потерять память на объектах, которые не используются
 
-The size of an object pool needs to be tuned for the game's needs.
-When tuning, it's usually obvious when the pool is too *small*
-(there's nothing like a crash to get your attention). But also take
-care that the pool isn't too *big*. A smaller pool frees up memory
-that could be used for other fun stuff.
+Размер пула объектов зависит от нужд игры. При настройке, обычно очевидны ситуации, когда пул *слишком* мал (падение привлекает внимание, как ничто другое). Но лучше ещё и убедиться, что пул не *слишком большой*. Маленький пул освободит память, которую можно использовать для других прикольных штук.
 
-### Only a fixed number of objects can be active at any one time
+### Ограничено количество объектов, которые можно одновременно активировать
 
-In some ways this is a good thing. Partitioning memory into
-separate pools for different types of objects ensures that, for
-example, a huge sequence of explosions won't cause your particle
-system to eat *all* of the available memory, preventing something more
-critical like a new enemy from being created.
+По-своему, это хорошее свойство. Разбивка памяти на отдельные пулы для разных типов объектов помогает, например при массовых взрывах на экране, не съесть *всю* доступную память. Что может привести к критической проблеме, например, не получиться создать нового врага.
 
-Nonetheless, this also means being prepared for the possibility that
-your attempt to reuse an object from the pool will fail because they
-are all in use. There are a couple of common strategies to handle
-this.
+Тем не менее, это означает, что нужно быть готовым к ситуации, когда не удасться получить объект из пула, потому что все они заняты. Есть несколько стратегий для этой ситуации.
 
-1.  *Prevent it outright.* This is the most common "fix":
-    tune the pool sizes so that they never overflow regardless of what
-    the user does. For pools of important objects like enemies or
-    gameplay items, this is often the right answer. There may be no
-    "right" way to handle the lack of a free slot to
-    create the big boss when the player reaches the end of the level,
-    so the smart thing to do is make sure that never happens.
+1.  *Заранее избежать этого.* Часто используемое "решение": настроить размер пула так, что он никогда не переполнится, неважно как пойдет игра. Для пулов с важными вещами, как враги и объекты инвентаря, это разумное решение чаще всего. Тяжело придумать, как решить проблему нехватки объекта, когда нужно создать супербосса для игрока в конце уровня. Так что лучше просто убедиться, что такого не произойдет.
+    
+    Минус этого решения в том, что вы, как собака на сене, будете сидеть на объектах, которые будут нужны только пару редких раз. Из-за этого пулы фиксированных размеров не всегда подходят. Например, на некоторых уровнях могут быть широко использованы визуальных эффекты, а на других -- звуковые. В каждом случае тип и размер пула придется выбирать.
 
-    The downside is that this can force you to sit on a lot of memory
-    for object slots that are needed only for a couple of rare edge
-    cases. Because of this, a single fixed pool size may not be the
-    best fit for all game states. For instance, some levels may
-    feature effects prominently while others focus on sound. In such
-    cases, consider having pool sizes tuned differently for each
-    scenario.
+2.  *Просто не создавать объект.* Звучит странно, но это имеет смысл для вещей типа системы частиц. Если все частицы используются, то экран скорее всего наполнен вспыхивающей графикой. Игрок не заметит, если следующий взрыв будет не таким мощным, как предыдущий.
 
-2.  *Just don't create the object.* This sounds harsh, but it makes
-    sense for cases like our particle system. If all particles are in
-    use, the screen is probably full of flashing graphics. The user
-    won't notice if the next explosion isn't quite as impressive as
-    the ones currently going off.
+3.  *Освободить занятый объект.* Допустим, есть пул звуков, и вы хотите проиграть новый звук, хотя пул заполнен. И вы *не хотите*, чтобы игрок пропустил новый звук: легко заметить, если автомат не стреляет иногда. Тогда лучшим решением будет найти самый тихий звук, который сейчас проигрывается и заменить его новым. Новый звук замаскирует пропажу старого.
 
-3.  *Forcibly kill an existing object.* Consider a pool for currently
-    playing sounds, and assume you want to start a new sound but the
-    pool is full. You do *not* want to simply ignore the new sound:
-    the user will notice if their magical wand swishes dramatically
-    *sometimes* and stay stubbornly silent other times. A better
-    solution is to find the quietest sound already playing and replace
-    that with our new sound. The new sound will mask the audible
-    cutoff of the previous sound.
+    В общем, если *пропажа* существующего объекта будет менее заметной, чем *отсутствие* нового, это может оказаться верным направлением.
 
-    In general, if the *disappearance* of an existing object would be
-    less noticeable than the *absence* of a new one, this may be the
-    right choice.
+4.  *Увеличить размер пула.* Если ваша игра может позволить себе гибкость с памятью, то можно увеличить размер пула прямо во время работы, или создать второй, вспомогательный пул. Если при этом будет использоваться слишком много памяти, можно добавить функцию уменьшения размера пула, когда дополнительная емкость больше не нужна.
 
-4.  *Increase the size of the pool.* If your game lets you be a bit
-    more flexible with memory, you may be able to increase the size of
-    the pool at runtime, or create a second overflow pool. If you do
-    grab more memory in either of these ways, consider whether or not
-    the pool should contract to its previous size when the additional
-    capacity is no longer needed.
+### Для каждого объекта выделяется фиксированный размер памяти
 
-### Memory size for each object is fixed
+Большинство реализаций пула хранят объекты в простом массиве. Если все объекты одного типа, то это нормально. Но если типы объектов могут быть разные, или дочерний класс объекта добавляет себе поля, нужно учитывать это при выделении памяти для пула. Нужно убедиться, что пулу хватит памяти для размещения *самого большого* объекта. Иначе неожиданной большой объект затрет следующий в массиве и испортит память.
 
-Most pool implementations store the objects in an array of in-place
-objects. If all of your objects are of the same type, this is
-fine. However, if you want to store objects of different types in the
-pool, or instances of subclasses that may add fields, you need to
-ensure that each slot in the pool has enough memory for the *largest*
-possible object. Otherwise, an unexpectedly large object will stomp
-over the next one and trash memory.
+В то же время, когда размер объекта варьируется, зря используется память. Место под каждый объект увеличено, поскольку большой объект может попасть в любое место. И если больших объектов мало, то память теряется каждый раз, когда вы помещаете в пул маленький объект. Это как проходить осмотр в аэропорту и положить свои ключи в поддон для чемодана.
 
-At the same time, when your objects vary in size, you waste memory.
-Each slot needs to be big enough to accomodate the largest object. If
-objects are rarely that big, you're throwing away memory every time
-you put a smaller one in that slot. It's like going through airport
-security and using a huge carry-on-sized luggage tray just for your
-keys and wallet.
-
-When you find yourself burning a lot of memory this way, consider
-splitting the pool into <span name="pools">separate</span> pools for different sizes of
-object -- big trays for luggage, little trays for pocket stuff.
+Если у вас такая ситуация, то можно рассмотреть возможность разделить пул на <span name="pools">отдельные</span> пулы для объектов разного размера -- большие, как для чемоданов, и маленькие, как для ключей.
 
 <aside name="pools">
 
-This is a common pattern for implementing speed-efficient memory
-managers. The manager has a number of pools of different block sizes.
-When you ask it to allocate a block, it finds in an open slot in the
-pool of the appropriate size and allocates from that pool.
+Это общий подход для реализации ориентированных на скорость менеджеров памяти. Менеджер имеет несколько пулов для блоков разного размера. Когда вы запрашиваете блок памяти, он выбирается из пула подходящего размера.
 
 </aside>
 
-### Reused objects aren't automatically cleared
+### Объекты не очищаются автоматически
 
-Most memory managers have a debug feature that will clear freshly
-allocated or freed memory to some obvious magic value like
-`0xdeadbeef`. This helps you find painful bugs caused by uninitialized
-variables or using memory after it's freed.
+У менеджеров памяти есть специальная функция в режиме отладки, когда они заполняют только что выделенную или освобожденную память специальными значениями, типа `0xdeadbeef`. Это помогает вытащить наружу сложные шибки, которые вызваны использованием переменных, которые не инициализированы, или используют память после того, как она была освобождена.
 
-Since our object pool isn't going through the memory manager any more
-when it reuses an object, we lose that safety net. Worse, the memory
-used for a "new" object previously held an object of the
-exact same type. This makes it nearly impossible to tell if you forgot
-to initialize something when you created the new object: the memory
-where the object is stored may already contain *almost* correct data
-from its past life.
+Поскольку наш пул объектов не пользуется менеджером памяти, мы теряем эту полезную функцию. Хуже того, память под новый объект содержит данные предыдущего объекта. Из-за этого почти невозможно узнать, что вы забыли инициализировать объект: память хранит старые значения от прошлого объекта, которые выглядят *практически* корректными.
 
-Because of this, pay special care that the code that initializes new
-objects in the pool *fully* initializes the object. It may even be
-worth spending a bit of time adding a debug feature that <span name="clear">clears</span> the
-memory for an object slot when the object is reclaimed.
+Следует внимательно следить за тем, что код, который создает объект в пуле *полностью* инициализирует объект. Возможно стоит даже потратить время на добавление специального поведения, которое <span name="clear">очищает</span> память перед тем, как запросят новый объект.
 
 <aside name="clear">
 
-I'd be honored if you clear it to `0x1deadb0b`.
+Почту за честь, если вы будете использовать `0x1deadb0b`.
 
 </aside>
 
-### Unused objects will remain in memory
+### Объекты занимают память, даже если не используются
 
-Object pools are less common in systems that support garbage
-collection because the memory manager will usually deal
-with fragmentation for you. But pools are still useful there to avoid
-the cost of allocation and deallocation, especially on mobile
-devices with slower CPUs and simpler GC implementations.
+Пулы объектов редко встречаются в системах с автоматической сборкой мусора, потому что менеджер сам заботиться о том, чтобы не было дефрагментации памяти. Но пулы все равно пригодятся, если нужно нивелировать затраты на размещение и уничтожение ресурсов, особенно на мобильных устройствах с медленными процессорами и простыми стратегиями сборки мусора.
 
-If you do use an object pool there, beware of a potential conflict. Since
-the pool doesn't actually deallocate objects when they're no longer
-in use, they remain in memory. If they contain references to *other*
-objects, it will prevent the collector from reclaiming those too.
-To avoid this, when a pooled object is no longer in use, clear any
-references it has to other objects.
+Если вы используете пул объектов, может возникнуть потенциальный конфликт. Поскольку пул не уничтожает объекты на самом деле, они все ещё находятся в памяти. И если они содержат ссылки на *другие* объекты, это не позволит сборщику собрать неиспользуемую память. Чтобы избежать такого поведения, очищайте ссылки в объекте, когда возвращаете его в пул.
 
-## Sample Code
+## Пример
 
-Real-world particle systems will often apply gravity, wind, friction,
-and other physical effects. Our much simpler sample will just move
-particles in a straight line for a certain number of frames and then
-kill the particle. Not exactly film caliber, but it should illustrate
-how to use an object pool.
+Системы частиц реального мира чаще всего добавляют гравитацию, ветер, трение и другие физические эффекты. Наш самый простой пример будет просто двигать частицы по прямой линии в течении пары кадров и убивать их после этого. Для блокбастера не подходит, но для демонстрации работы пула и как его использовать -- вполне.
 
-We'll start with the simplest possible implementation. First up is the little
-particle class:
+Начнем с минимального кода. Сперва, маленький класс для частицы:
 
 ^code 1
 
-The default constructor initializes the particle to "not in
-use." A later call to `init()` initializes the particle to a
-live state.
+Конструктор по умолчанию инициализирует частицу в состояние "свободна". Вызов метода `init()` позже переводит частицу в живое состояние.
 
-Particles are animated over time using the unsurprisingly named
-`animate()` function, which should be called once per frame.
+Частицы анимированы с помощью метода, логично названного `animate()`, который вызывается один раз каждый кадр.
 
-The pool needs to know which particles are available for reuse. It
-gets this from the particle's `inUse()` function. It takes advantage
-of the fact that particles have a limited lifetime, and uses the
-`_framesLeft` variable to discover which particles are in use without
-having to store a separate flag.
+Пулу необходимо знать, какие частицы свободны для использования. Это можно узнать, вызвав функцию `inUse()` у частицы. Эта функция использует факт, что  частицы живут несколько кадров, и можно использовать переменную `_framesLeft` чтобы понять, сколько частиц свободно без добавления отдельного флага.
 
-The pool class is also simple:
+Класс пула также прост:
 
 ^code 2
 
-The `create()` function lets external code create new particles. The game calls
-<span name="update">`animate()`</span> once per frame, which in turn animates
-each particle in the pool.
+Функция `create()`  позволяет внешнему коду создавать новые частицы. Игра вызывает <span name="update">`animate()`</span> каждый кадр. Которая, в свою очередь, вызвает метод анимации у каждой частицы в пуле.
 
 <aside name="update">
 
-This `animate()` method is an example of the <a href="update-method.html"
-class="pattern">Update Method</a> pattern.
+Метод `animate()` -- это пример паттерна <a href="update-method.html" class="pattern">Update Method</a>.
 
 </aside>
 
-The particles themselves are simply stored in a fixed-size array in
-the class. In this sample implementation, the pool size is hardcoded
-in the class declaration, but this could be defined externally by
-using a dynamic array of a given size, or using a value template
-parameter.
+Сами частицы храняться в массиве фиксированного размера внутри класса. В этой простой реализации, размер пула известен заранее, в объявлении класса. Но можно и определить его снаружи и использовать динамические массивы, или использовать шаблонные реализации с размером.
 
-Creating a new particle is straightforward:
+Создание новой частицы довольно просто:
 
 ^code 3
 
-We iterate through the pool looking for the first available particle.
-When we find it, we initialize it and we're done. Note that in this
-implementation, if there aren't any available particles, we simply
-don't create a new one.
+Проходим по всему пулу и ищем первую свободную. Инициализируем её и все. В этом варианте, если свободной частицы нет, то мы просто не создадим новую.
 
-That's all there is to a simple particle system, aside from rendering
-the particles, of course. We can now create a pool, and create some
-particles using it. The particles will automatically deactivate
-themselves when their lifetime has expired.
+Мы коснулись только самой простой системы частиц, не затрагивая систему отображения, конечно же. Мы можем сейчас создать пул и несколько частиц, которые автоматически деактивируются, когда их время закончится.
 
-This is good enough to ship a game, but keen eyes may have noticed
-that creating a new particle requires <span name="create">iterating</span> through (potentially)
-the entire collection until we find an open slot. If the pool is very
-large and mostly full, that can get slow. Let's see how we can improve
-that.
+Этого достаточно, чтобы выпустить игру, но внимательный глаз заметит, что создание новой частицы требует <span name="create">прохода</span> по массиву, возможно полного прохода, до тех пор, пока мы не найдем пустую частицу. Если пул достаточно большой и заполнен почти полностью, то этот процесс затянется. Посмотрим, как мы можем этого избежать.
 
 <aside name="create">
 
-Creating a particle has O(n) complexity, for those of us who remember
-our algorithms class.
+Создание частицы имеет сложность O(n). Это для тех, кто помнит, что это значит.
 
 </aside>
 
-### A free list
+### Список свободных объектов
 
 If we don't want to waste time *finding* free particles, the obvious answer is
 to not lose track of them. We could store a separate list of pointers to each
