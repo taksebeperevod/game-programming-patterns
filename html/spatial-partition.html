@@ -30,15 +30,9 @@
 <h2><a href="#общая-мысль" name="общая-мысль">Общая мысль</a></h2>
 <p><em>Эффективный поиск соседних объектов с помощью пространственного индекса</em></p>
 <h2><a href="#предыстория" name="предыстория">Предыстория</a></h2>
-<p>Games let us visit other worlds, but those worlds typically aren&#8217;t so different from our own. They often share the same
-basic physics and tangibility of our world. This is why they can feel real despite being crafted of mere bits and pixels.</p>
-<p>One bit of fake reality that we&#8217;ll focus on here is <em>location</em>. Game
-worlds have a sense of <em>space</em>, and objects are somewhere in that space.
-This manifests itself in a bunch of ways. The obvious one is physics&#8202;&mdash;&#8202;objects
-move, collide, and interact&#8202;&mdash;&#8202;but there are other examples. The audio engine may take into account where
-sound sources are relative to the player so that distant sounds are quieter. Online chat may be restricted to nearby players.</p>
-<p>This means your game engine often needs to answer to the question, &#8220;What objects are near this location?&#8221; If it has to answer this enough times each frame, it can start to be
-a performance bottleneck.</p>
+<p>Игры открывают нам новые миры, но эти миры обычно не сильно отличаются от нашего. У них такие же основы физики и восприятия, как и у нас. Поэтому мы легко принимаем их, хотя они созданы из простых битов и пикселей.</p>
+<p>Сейчас мы поговорим об одном аспекте виртуальноу реальности&#8202;&mdash;&#8202;о <em>локациях</em>. В игровых мирах есть некое понятие <em>пространства</em>, и объекты находятся где-то внутри этого пространства. Это понятно само по себе из многих факторов. Очевидно, что там есть физика&#8202;&mdash;&#8202;объекты двигаются, сталкиваются и взаимодействуют,&#8202;&mdash;&#8202;но есть и другие примеры. Звуковой движок может использовать информацию о положении источника звука, чтобы убавлять громкость для отдаленных объектов. Чаты в онлайн играх могут показывать сообщения только от ближайших игроков.</p>
+<p>Все это ведет к вопросу &#8220;что находится рядом с этой локацией?&#8221; Хочется получать ответ на этот вопрос быстро, потому что это может стать реально узким местом, если делать это достаточно часто.</p>
 <h3><a href="#units-on-the-field-of-battle" name="units-on-the-field-of-battle">Units on the field of battle</a></h3>
 <p>Say we&#8217;re making a real-time strategy game. Opposing armies with hundreds of units will clash together on the field of battle. Warriors need to know which nearby enemy to swing their blade at. The na&iuml;ve way to handle this is by looking at every pair of units and seeing how close they are to each other:</p>
 <div class="codehilite"><pre><span class="kt">void</span> <span class="nf">handleMelee</span><span class="p">(</span><span class="n">Unit</span><span class="o">*</span> <span class="n">units</span><span class="p">[],</span> <span class="kt">int</span> <span class="n">numUnits</span><span class="p">)</span>

@@ -7,17 +7,11 @@
 
 ## Предыстория
 
-Games let us visit other worlds, but those worlds typically aren't so different from our own. They often share the same
-basic physics and tangibility of our world. This is why they can feel real despite being crafted of mere bits and pixels.
+Игры открывают нам новые миры, но эти миры обычно не сильно отличаются от нашего. У них такие же основы физики и восприятия, как и у нас. Поэтому мы легко принимаем их, хотя они созданы из простых битов и пикселей.
 
-One bit of fake reality that we'll focus on here is *location*. Game
-worlds have a sense of *space*, and objects are somewhere in that space.
-This manifests itself in a bunch of ways. The obvious one is physics -- objects
-move, collide, and interact -- but there are other examples. The audio engine may take into account where
-sound sources are relative to the player so that distant sounds are quieter. Online chat may be restricted to nearby players.
+Сейчас мы поговорим об одном аспекте виртуальноу реальности -- о *локациях*. В игровых мирах есть некое понятие *пространства*, и объекты находятся где-то внутри этого пространства. Это понятно само по себе из многих факторов. Очевидно, что там есть физика -- объекты двигаются, сталкиваются и взаимодействуют, -- но есть и другие примеры. Звуковой движок может использовать информацию о положении источника звука, чтобы убавлять громкость для отдаленных объектов. Чаты в онлайн играх могут показывать сообщения только от ближайших игроков.
 
-This means your game engine often needs to answer to the question, "What objects are near this location?" If it has to answer this enough times each frame, it can start to be
-a performance bottleneck.
+Все это ведет к вопросу "что находится рядом с этой локацией?" Хочется получать ответ на этот вопрос быстро, потому что это может стать реально узким местом, если делать это достаточно часто.
 
 ### Units on the field of battle
 
