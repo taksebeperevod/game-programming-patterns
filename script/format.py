@@ -49,7 +49,7 @@ CHAPTERS = [
   (u"Data Locality", u"Data Locality"),
   (u"Dirty Flag", u"Dirty Flag"),
   (u"Object Pool", u"Object Pool"),
-  (u"Spatial Partition", u"Spatial Partition")
+  (u"Spatial Partition", u"Пространственный индекс")
 ]
 
 STRINGS = {

@@ -1,11 +1,11 @@
-^title Spatial Partition
+^title Пространственный индекс
 ^section Низкоуровневая оптимизация
 
-## Intent
+## Общая мысль
 
-*Efficiently locate nearby objects by storing them in a data structure organized by their positions.*
+*Эффективный поиск соседних объектов с помощью пространственного индекса*
 
-## Motivation
+## Предыстория
 
 Games let us visit other worlds, but those worlds typically aren't so different from our own. They often share the same
 basic physics and tangibility of our world. This is why they can feel real despite being crafted of mere bits and pixels.
