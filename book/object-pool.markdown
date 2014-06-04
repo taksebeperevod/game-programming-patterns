@@ -3,7 +3,7 @@
 
 ## Общая мысль
 
-*Улучшить быстродействие и оптимизировать работу с памятью путем переиспользования объектов из пула фиксированного размера вместо того, чтобы каждый раз создавать и уничтожать их порознь.*
+*Улучшить быстродействие и оптимизировать работу с памятью путем переиспользования объектов из пула фиксированного размера вместо того, чтобы каждый раз создавать и уничтожать объект.*
 
 ## Предыстория
 
@@ -171,192 +171,108 @@
 
 ### Список свободных объектов
 
-If we don't want to waste time *finding* free particles, the obvious answer is
-to not lose track of them. We could store a separate list of pointers to each
-unused particle. Then, when we need to create a particle, we just remove the
-first pointer from the list and reuse the particle it points to.
+Если задаться целью не тратить время на *поиск* свободных частиц, то очевидный ответ -- это не упускать их из виду с самого начала. Мы можем устроить дополнительный список указателей на неиспользуемые частицы. Теперь, когда нам нужно создать частицу, мы достаем первый указатель из этого списка и используем частицу, на который он указывает.
 
-Unfortunately, this would require us to maintain an entire separate array with
-as many pointers as there are objects in the pool. After all, when we first
-create the pool, *all* particles are unused, so the list would initially have a
-pointer to every object in the pool.
+К сожалению, это ведет к ещё одному отдельному массиву, который может по размерам сравняться с основным. В конце  концов, когда мы только создаем пул, *все* частицы в нем свободны, так что вспомогательный массив изначально содержит все частицы из списка.
 
-It would be nice to fix our performance problems *without* sacrificing any
-memory. Conveniently, there is some memory already lying around we can borrow:
-the data for the unused particles themselves.
+Было бы здорово избежать проблем, *не занимая* памяти дополнительно. Например, мы можем воспользоваться памятью, где уже лежат эти свободные частицы. 
 
-When a particle isn't in use, most of its state is irrelevant. Its position and
-velocity aren't being used. The only state it needs is the stuff required to
-tell if it's dead. In our example, that's the `_framesLeft` member. All those
-other bits can be reused. Here's a revised particle:
+Когда частица свободна, то большинство её аттрибутов не имеют смысла. Координаты и скорость у свободной частицы не используются. Единственное что нужно -- это указание того, что частица дествительно мертва. В нашем примере, это поле `_framesLeft`. Все остальные биты можно использовать под свои нужды. Вот как это выглядит:
 
 ^code 4
 
-We've gotten all of the member variables except for `framesLeft_` and moved them
-into a `live` struct inside a `state_` <span name="union">union</span>. This
-struct holds the particle's state when it's being animated. When the particle is
-unused, the other case of the union, the `next` member, is used. It holds a
-pointer to the next available particle after this one.
+Мы взяли все поля, кроме `framesLeft_`, и поместили их в <span name="union">объединение</span> `state_`. Эта структура содержит данные, которые используются при анимации. Когда частица не занята, то используется только `next` из этого объединения. Это указатель на следующую свободную частицу.
 
 <aside name="union">
 
-Unions don't seem to be used that often these days, so the syntax may be
-unfamiliar to you. If you're on a game team, you've probably got a "memory
-guru", that beleaguered compatriot whose job it is to come up with a solution
-when the game has inevitably blown its memory budget. Ask them about unions.
-They'll know all about them and other fun bit-packing tricks.
+Объединения не часто используются в наши дни, так что синтаксис может показаться новым. Если вы работаете в команде, у вас наверняка есть гуру, чья задача решать трудности, из-за которых игра выбивается из бюджета. Спросите у него насчет объединений -- узнаете и о них, и о других прикольных трюках с упаковкой данных.
 
 </aside>
 
-We can use these pointers to build a linked list that chains together every
-unused particle in the pool. We have the list of available particles we need,
-but did't need to use any additional memory. Instead, we cannibalize the memory
-of the dead particles themselves to store the list.
+Можно использовать эту указатели, чтобы построить связный список из свободных частиц. При это дополнительной памяти использоваться не будет. Вместо этого, мы утилизируем память, которая не приносит пользы в данный момент, чтобы хранить наш список.
 
-This clever technique is called a [*free
-list*](http://en.wikipedia.org/wiki/Free_list). For it to work, we need to make
-sure the pointers are initialized correctly and are maintained when particles
-are created and destroyed. And, of course, we need to keep track of the list's
-head:
+Это умная техника называется [*свободный список*](http://en.wikipedia.org/wiki/Free_list). Для того, чтобы это заработало, надо правильно инициализировать указатель и следить за ним, когда частица создается и уничтожается. И, конечно, надо где-то хранить начало списка:
 
 ^code 5
 
-When a pool is first created, *all* of the particles are available, so
-our free list should thread through the entire pool. The pool
-constructor sets that up:
+Когда пул создается, *все* частицы свободны, так что этот свободный список проходит через все частицы. За это отвечает конструктор:
 
 ^code 6
 
-Now to create a new particle we just jump directly to the <span name="first">first</span>
-available one:
+Теперь, чтобы создать новую частицу, мы просто вытаскиваем <span name="first">первую</span> свободную:
 
 <aside name="first">
 
-O(1) complexity, baby! Now we're cooking!
+Сложность O(1)!
 
 </aside>
 
 ^code 7
 
-When a particle gives up the ghost we just thread it back onto the
-list:
+Когда частица умирает, мы кладем её обратно в этот список:
 
 ^code 8
 
-There you go, a nice little object pool with constant-time creation
-and deletion.
+Вот так, маленький пул объектов, который тратит константное время на создание и удаление объектов.
 
-## Design Decisions
+## Архитектурные решения 
 
-As you've seen, the simplest object pool implementation is almost
-trivial: create an array of objects and reinitialize them as needed.
-Production code is rarely that minimal. There are several ways to
-expand on that to make the pool more generic, safer to use, or easier
-to maintain. As you implement pools in your games, you'll need to
-answer these questions:
+Простейшая реализация пула почти тривиальна: создать массив объектов и переинициализация их, когда понадобится. В реальной жизни бывают случаи посложнее. Если несколько способов сделать пул более типизированным, безопасным, или простым в использовании. Когда вы приступите к реализации пула в своем коде, придется ответить на следующие вопросы:
 
-### Are objects coupled to the pool?
+### Объекты привязаны к пулу?
 
-The first question you'll run into when writing an object pool is
-whether the objects themselves know they are in a pool. Most of
-the time they will, but you won't have that luxury when writing a
-generic pool class that can hold arbitrary objects.
+Первый вопрос, с которым вы столкнетесь, это должны ли объекты знать о пуле, в котором они лежат. Большую часть времени -- да, но хочется сделать пул как можно более общим, без указания на класс, который он будет поддерживать.
 
-* **If objects are coupled to the pool:**
+* **Когда объекты привязаны к пулу:**
 
-     *  *The implementation is simpler.* You can simply put an "in
-        use" flag or function in your pooled object and be done with
-        it.
+     *  *Реализация проста.* Можно просто добавить флаг или функцию типа "я свободен" в объект.
 
-     *  *You can ensure that the objects can only be created by the pool.*
-        In C++, a simple way to do this is to make the pool class a friend
-        of the object class, and then make the object's constructor
-        private.
+     *  *Объекты будут создаваться только пулом.* В C++ можно сделать пул friend-классом объекта и закрыть публичный конструктор.
 
         ^code 10
 
-        This relationship documents the intended way to use the class and
-        ensures your users don't create objects that aren't tracked by the
-        pool.
+        Эта связь показывает механизм работы с объектом и уведомляет программиста, что не надо создавать объекты вне пула.
 
-     *  *You may be able to avoid storing an explicit "in use"
-        flag.* Many objects already retain some state that could be used
-        to tell whether it is alive or not. For example, a particle may be
-        available for reuse if its current position is offscreen. If the
-        object class knows it may be used in a pool, it can provide an
-        `inUse()` method to query that state. This saves the pool from
-        having to burn some extra memory storing a bunch of "in
-        use" flags.
+     *  *Можно попробовать избежать явного флага занятости.* Большинство объектов содержать информацию, которую можно использовать в качестве подобного флага. Например, частица может быть свободна, если её координаты находятся вне экрана. Когда объект используется в пуле, то метод `inUse()` может использовать эту информацию. Это поможет сэкономить немного места.
 
-* **If objects are not coupled to the pool:**
+* **Если объект и пул не связаны:**
 
-     *  *Objects of any type can be pooled.* This is the big advantage. By
-        decoupling objects from the pool, you may be able to implement a
-        generic reusable pool class.
+     *  *Можно использовать пул под любые классы.* Довольно сильное преимущество. Можно написать пул, которому вообще не нужно будет знать о классе, который он хранить.
 
-     *  *The "in use" state must be tracked outside the
-        objects.* The simplest way to do this is by creating a separate
-        bit field.
+     *  *Флаг занятости придется отслеживать снаружи.* В простейшем случае для этого добавляется набор флагов.
 
         ^code 11
 
-### What is responsible for initializing the reused objects?
+### Кто инициализирует объект?
 
-In order to reuse an existing object, it must be reinitialized with
-new state. A key question here is whether to reinitialize the object
-inside the pool class or outside.
+Когда вы воскрешаете объект, его надо как-то инициализировать. Ключевой момент здесь -- делать это внутри пула или снаружи.
 
-* **If the pool reinitializes internally:**
+* **Если этим занимается пул:**
 
-     *  *The pool can completely encapsulate its objects*. Depending on
-        the other capabilities your objects need, you may be able to keep
-        them completely internal to the pool. This makes sure that other
-        code doesn't maintain references to objects that could be
-        unexpectedly reused.
+     *  *Объекты полностью инкапсулированы в пуле*. Если вам немного нужно от самих объектов, то их вообще можно спрятать внутри пула. Тогда не будет проблем с тем, что кто-то получает указатель на мертвую частицу.
 
-     *  *The pool is tied to how objects are initialized*. A pooled object
-        may offer multiple functions that initialize it. If the pool
-        manages initialization, its interface needs to support all of
-        those and forward them to the object.
+     *  *Пул жестко привязан к вариантам инициализации*. Объект пула может предоставить несколько функций для инициализации. Если пул этим занимается, то его интерфейс должен поддерживать все варианты и делегировать вызовы к создаваемому объекту.
 
         ^code 12
 
-* **If outside code initializes the object:**
+* **Если инициализировать снаружи:**
 
-     *  *The pool's interface can be simpler.* Instead of offering
-        multiple functions to cover each way an object can be initialized,
-        the pool can simply return a reference to the new object.
+     *  *Интерфейс пула становиться проще.* Вместо того, чтобы покрывать все варианты инициализации, пул может просто возвращать ссылку на новый объект.
 
         ^code 13
 
-        The caller can then initialize the object by calling any method
-        the object exposes.
+        И тогда уже вызывающая сторона будет проводить необходимую инициализацию.
 
         ^code 14
 
-     *  *Outside code may need to handle the failure to create a new
-        object.* The previous example assumes that `create()` will always
-        successfully return a pointer to an object. If the pool is full,
-        though, it may return `NULL` instead. To be safe, you'll need to
-        check for that before you try to initialize the object.
+     *  *Нужно учесть, что получение нового объекта может сорваться.* В предыдущем примере предполагается, что `create()` всегда вернет валидный указатель на объект. Если пул заполнен, то можно в ответ получить `NULL`. Чтоб обезопаситься, надо проверять это перед использованием указателя.
 
         ^code 15
 
-## See Also
+## Что ещё
 
-*   This looks a lot like the <a class="gof-pattern" href="flyweight.html">
-    Flyweight pattern</a>. Both maintain a collection of reusable objects. The
-    difference is what "reuse" means. Flyweight objects are reused by sharing
-    the same instance between multiple owners *simultaneously*. It avoids
-    *duplicate* memory usage by using the same object in multiple contexts.
+*   Все это очень похоже на <a class="gof-pattern" href="flyweight.html">Flyweight pattern</a>. Оба содержат список переиспользуемых объектов. Отличие в разном смысле слова "переиспользовать". Легкие объекты используются несколькими владельцами *одновременно*. Это экономит память, когда вы используете один и тот же объект в разных контекстах.
 
-    The objects in a pool get reused too, but only over time. "Reuse" in the
-    context of an object pool means reclaiming the memory for an object
-    *after* the original owner is done with it. With an object pool, there
-    isn't any expectation that an object will be shared within its
-    lifetime.
+    Объекты пула тоже используются вторично, но только со временем. "Использование" в контексте пула означает, что память используется заново, когда предыдущему владельцу она уже *не нужна*. Пул не предполагает одновременной работы с живым объектом из нескольких мест.  
 
-*   Packing a bunch of objects of the same type together in memory helps keep
-    your CPU cache full as you iterate over those objects. The
-    <a class="pattern" href="data-locality.html">Data Locality pattern</a>
-    is all about that.
+* Упаковка набора объектов одного типа рядом друг с другом положительно сказываться на кэше просессора. Глава <a class="pattern" href="data-locality.html">Компактность данных</a> рассматривает эту тему.

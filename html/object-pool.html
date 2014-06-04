@@ -28,7 +28,7 @@
 <h1>Пул объектов</h1>
 <h1 class="book"><a href="/">Game Programming Patterns</a><span class="section"><a href="optimization-patterns.html">Низкоуровневая оптимизация</a></span></h1>
 <h2><a href="#общая-мысль" name="общая-мысль">Общая мысль</a></h2>
-<p><em>Улучшить быстродействие и оптимизировать работу с памятью путем переиспользования объектов из пула фиксированного размера вместо того, чтобы каждый раз создавать и уничтожать их порознь.</em></p>
+<p><em>Улучшить быстродействие и оптимизировать работу с памятью путем переиспользования объектов из пула фиксированного размера вместо того, чтобы каждый раз создавать и уничтожать объект.</em></p>
 <h2><a href="#предыстория" name="предыстория">Предыстория</a></h2>
 <p>Мы работаем над визуальными эффектами для нашей игры. Когда герой наносит заклинание, сноп искр должен рассыпаться по экрану. Это задача для <em>системы частиц</em>: движок, который выпускает маленькие картинки искр и передвигает их, пока они не потухнут.</p>
 <p>Поскольку одиночный взмах волшебной палочки может вызвать сотни искр, наша система должна быть способна очень быстро создавать и уничтожать эти частицы и при этом не вызывать дефрагментацию памяти.</p>
@@ -36,203 +36,91 @@
 <p>Программирование для консолей, таких как XBox 360, больше похоже на программирование для встроенных устройств, чем на программирование для обычных компьютеров. Игры для консолей обязаны долгое время работать без сбоев и утечек памяти, а эффективные менеджеры памяти редко попадаются на пути. В этом случае фрагментация памяти&#8202;&mdash;&#8202;смерти подобно.</p>
 <p>Фрагментация означает, что свободное место в куче <span name="park">разбивается</span> на маленькие кусочки памяти, вместо одного большого свободного блока. <em>Общий</em>  объем свободной памяти может быть большой, но самый большой <em>непрерывный</em> регион может быть ужасно маленьким. Например, может быть 14 байтов свободно, но они состоят из двух 7-байтных кусков с большим разрывом между собой. Если мы захотим выделить 12 байт, то потерпим неудачу. И все, никаких звездочек больше на экране.</p>
 <aside name="park">
-<p>It&#8217;s like trying to parallel park on a busy street where the
-already parked cars are spread out a bit too far. If
-they&#8217;d bunch up, there would be room, but the free
-space is <em>fragmented</em> into bits of open curb between half a dozen cars.</p>
+<p>Это как парковаться на улице, где уже есть куча припаркованных автомобилей. Если бы их сдвинуть вплотную, то место быстро бы нашлось. Но машины стоят слишком широко, и втиснуться просто некуда.</p>
 </aside>
 <p><span name="heap"></span></p>
 <p><img src="images/object-pool-heap-fragment.png" /></p>
 <aside name="heap">
-<p>Here&#8217;s how a heap becomes fragmented, and how it can cause an
-allocation to fail even where there&#8217;s theoretically enough memory
-available.</p>
+<p>Тут объясняется, как память становиться фрагментированной, и как можно потерпеть неудачу, пытаясь разместить объект, для которого, вроде бы, хватает места.</p>
 </aside>
-<p>Even if fragmentation is infrequent, it can still <span name="soak">gradually</span> reduce the
-heap to an unusable foam of open holes and filled-in crevices,
-ultimately hosing the game completely.</p>
+<p>Даже если фрагментация несильная, она все равно может <span name="soak">постепенно</span> превратить память в бесполезный кусок сыра с открытыми дырками, что повредит всей игре.</p>
 <aside name="soak">
-<p>Most console makers require games to pass &#8220;soak tests&#8221;
-where they leave the game running in demo mode for several days. If
-the game crashes, they don&#8217;t allow it to ship. While soak tests
-sometimes fail because of a rarely-occurring bug, it&#8217;s usually
-creeping fragmentation or memory leakage that brings the game down.</p>
+<p>Разработчики для консолей проводят тесты, в которых они оставляют игру запущенной на несколько дней. Если игра падает, то её просто не выпускают. Хотя игра может упасть из-за редко воспроизводящегося бага, чаще всего именно чрезмерная фрагментация или утечка памяти приводят к сбою.</p>
 </aside>
-<h3><a href="#the-best-of-both-worlds" name="the-best-of-both-worlds">The best of both worlds</a></h3>
-<p>Because of fragmentation, and because allocation may be slow, games are very
-careful about when and how they manage memory. A simple solution is
-often best: grab a big chunk of memory when the game starts and don&#8217;t
-free it until the game ends. But this is a pain for systems where we
-need to create and destroy things while the game is running.</p>
-<p>An object pool gives us the best of both worlds: to the memory
-manager, we&#8217;re just allocating one big hunk of memory up front and not
-freeing it while the game is playing. To the users of the pool, we
-can freely allocate and deallocate objects to our heart&#8217;s content.</p>
-<h2><a href="#the-pattern" name="the-pattern">The Pattern</a></h2>
-<p>Define a <strong>pool</strong> class that maintains a collection of <strong>reusable
-objects</strong>. Each object supports an <strong>&#8220;in use&#8221; query</strong> to
-tell if it is currently &#8220;alive.&#8221; When the pool is
-initialized, it creates the entire collection of objects up front
-(usually in a single contiguous allocation) and initializes them all
-to the &#8220;not in use&#8221; state.</p>
-<p>When you want a new object, ask the pool for one. It finds an
-available object, initializes it to &#8220;in use&#8221; and returns
-it. When the object is no longer needed, it is set back to the
-&#8220;not in use&#8221; state. This way, objects can be freely
-created and destroyed without needing to allocate memory or other
-resources.</p>
-<h2><a href="#when-to-use-it" name="when-to-use-it">When to Use It</a></h2>
-<p>This pattern is used widely in games for obvious things like game
-entities and visual effects, but also for less visible data structures
-such as currently playing sounds. Use Object Pool when:</p>
+<h3><a href="#берем-лучшее-от-всех" name="берем-лучшее-от-всех">Берем лучшее от всех</a></h3>
+<p>Из-за фрагментации, и ещё потому что выделение памяти может быть медленной, игры заботяться о том как и когда они управляют памятью. Простое решение обычно лучше: просто выделяем себе сразу большой кусок памяти, когда игра запускается и не отпускаем его, пока она не закончится. Но это не подходит для систем, где бы должны выделять и освобождать память во время игры.</p>
+<p>Пул объектов позволяет пользоваться плюсами обоих подходов: со стороны менеджера памяти мы выделяем один большой кусок памяти и не отпускаем, пока игра идет. А для пользователей пула объектов мы будем прозрачно создавать и уничтожать объекты.</p>
+<h2><a href="#принцип-работы" name="принцип-работы">Принцип работы</a></h2>
+<p>Есть <strong>класс пула</strong>, который содержит коллекцию <strong>используемых объектов</strong>. У каждый объекта есть <strong>статус</strong>, который говорит нам, занят ли этот объект. Когда пул инициализируется, он создает коллекцию объектов заранее и ставит им все статус &#8220;свободен&#8221;.</p>
+<p>Когда вам нужен новый объект, вы просите пул отдать его вам. Он находит свободный объект, ставит ему статус &#8220;занят&#8221; и возвращает вам. Если объект больше не нужен, ему опять ставится статус &#8220;свободен&#8221;. Таким образом, объекты могут быть заняты и освобождены без реального выделения памяти или других ресурсов.</p>
+<h2><a href="#когда-это-использовать" name="когда-это-использовать">Когда это использовать</a></h2>
+<p>Этот паттерн часто используется в играх не только для визуальных эффектов и игровых объектов, но и для невидимых структур, таких как звуки. Используйте пул, если:</p>
 <ul>
 <li>
 <p>Нужно часто создавать и уничтожать объекты.</p>
 </li>
 <li>
-<p>They are similar in size.</p>
+<p>Все объекты одинакового размера.</p>
 </li>
 <li>
-<p>Allocating them on the heap is slow or could lead to memory
-    fragmentation.</p>
+<p>Выделение памяти для объекта происходит медленно или может привести к фрагментации памяти.</p>
 </li>
 <li>
-<p>Each object encapsulates a resource such as a database or network
-    connection that is slow to acquire and could be reused.</p>
+<p>Каждый объект содержит в себе доступ к ресурсу, например соединение с базой данных или сетью, который медленно открывается и может быть переиспользован.</p>
 </li>
 </ul>
-<h2><a href="#keep-in-mind" name="keep-in-mind">Keep in Mind</a></h2>
-<p>You normally rely on a garbage collector or just <code>malloc()</code> and <code>free()</code> to handle memory management for you. By using an object pool, you&#8217;re saying, &#8220;I know better how these bytes should be handled.&#8221; That means the onus is on you to deal with this pattern&#8217;s limitations.</p>
-<h3><a href="#the-pool-may-waste-memory-on-unneeded-objects" name="the-pool-may-waste-memory-on-unneeded-objects">The pool may waste memory on unneeded objects</a></h3>
-<p>The size of an object pool needs to be tuned for the game&#8217;s needs.
-When tuning, it&#8217;s usually obvious when the pool is too <em>small</em>
-(there&#8217;s nothing like a crash to get your attention). But also take
-care that the pool isn&#8217;t too <em>big</em>. A smaller pool frees up memory
-that could be used for other fun stuff.</p>
-<h3><a href="#only-a-fixed-number-of-objects-can-be-active-at-any-one-time" name="only-a-fixed-number-of-objects-can-be-active-at-any-one-time">Only a fixed number of objects can be active at any one time</a></h3>
-<p>In some ways this is a good thing. Partitioning memory into
-separate pools for different types of objects ensures that, for
-example, a huge sequence of explosions won&#8217;t cause your particle
-system to eat <em>all</em> of the available memory, preventing something more
-critical like a new enemy from being created.</p>
-<p>Nonetheless, this also means being prepared for the possibility that
-your attempt to reuse an object from the pool will fail because they
-are all in use. There are a couple of common strategies to handle
-this.</p>
+<h2><a href="#что-нужно-помнить" name="что-нужно-помнить">Что нужно помнить</a></h2>
+<p>Обычно можно положиться на сборщик мусора или использовать <code>malloc()</code> и <code>free()</code> для работы с памятью. Но с помощью пула объектов, вы как бы говорите, что &#8220;я знаю лучше, как эта память должна быть использована&#8221;. Это значит, что вы сами будете решать все проблемы.</p>
+<h3><a href="#можно-потерять-память-на-объектах,-которые-не-используются" name="можно-потерять-память-на-объектах,-которые-не-используются">Можно потерять память на объектах, которые не используются</a></h3>
+<p>Размер пула объектов зависит от нужд игры. При настройке, обычно очевидны ситуации, когда пул <em>слишком</em> мал (падение привлекает внимание, как ничто другое). Но лучше ещё и убедиться, что пул не <em>слишком большой</em>. Маленький пул освободит память, которую можно использовать для других прикольных штук.</p>
+<h3><a href="#ограничено-количество-объектов,-которые-можно-одновременно-активировать" name="ограничено-количество-объектов,-которые-можно-одновременно-активировать">Ограничено количество объектов, которые можно одновременно активировать</a></h3>
+<p>По-своему, это хорошее свойство. Разбивка памяти на отдельные пулы для разных типов объектов помогает, например при массовых взрывах на экране, не съесть <em>всю</em> доступную память. Что может привести к критической проблеме, например, не получиться создать нового врага.</p>
+<p>Тем не менее, это означает, что нужно быть готовым к ситуации, когда не удасться получить объект из пула, потому что все они заняты. Есть несколько стратегий для этой ситуации.</p>
 <ol>
 <li>
-<p><em>Prevent it outright.</em> This is the most common &#8220;fix&#8221;:
-    tune the pool sizes so that they never overflow regardless of what
-    the user does. For pools of important objects like enemies or
-    gameplay items, this is often the right answer. There may be no
-    &#8220;right&#8221; way to handle the lack of a free slot to
-    create the big boss when the player reaches the end of the level,
-    so the smart thing to do is make sure that never happens.</p>
-<p>The downside is that this can force you to sit on a lot of memory
-for object slots that are needed only for a couple of rare edge
-cases. Because of this, a single fixed pool size may not be the
-best fit for all game states. For instance, some levels may
-feature effects prominently while others focus on sound. In such
-cases, consider having pool sizes tuned differently for each
-scenario.</p>
+<p><em>Заранее избежать этого.</em> Часто используемое &#8220;решение&#8221;: настроить размер пула так, что он никогда не переполнится, неважно как пойдет игра. Для пулов с важными вещами, как враги и объекты инвентаря, это разумное решение чаще всего. Тяжело придумать, как решить проблему нехватки объекта, когда нужно создать супербосса для игрока в конце уровня. Так что лучше просто убедиться, что такого не произойдет.</p>
+<p>Минус этого решения в том, что вы, как собака на сене, будете сидеть на объектах, которые будут нужны только пару редких раз. Из-за этого пулы фиксированных размеров не всегда подходят. Например, на некоторых уровнях могут быть широко использованы визуальных эффекты, а на других&#8202;&mdash;&#8202;звуковые. В каждом случае тип и размер пула придется выбирать.</p>
 </li>
 <li>
-<p><em>Just don&#8217;t create the object.</em> This sounds harsh, but it makes
-    sense for cases like our particle system. If all particles are in
-    use, the screen is probably full of flashing graphics. The user
-    won&#8217;t notice if the next explosion isn&#8217;t quite as impressive as
-    the ones currently going off.</p>
+<p><em>Просто не создавать объект.</em> Звучит странно, но это имеет смысл для вещей типа системы частиц. Если все частицы используются, то экран скорее всего наполнен вспыхивающей графикой. Игрок не заметит, если следующий взрыв будет не таким мощным, как предыдущий.</p>
 </li>
 <li>
-<p><em>Forcibly kill an existing object.</em> Consider a pool for currently
-    playing sounds, and assume you want to start a new sound but the
-    pool is full. You do <em>not</em> want to simply ignore the new sound:
-    the user will notice if their magical wand swishes dramatically
-    <em>sometimes</em> and stay stubbornly silent other times. A better
-    solution is to find the quietest sound already playing and replace
-    that with our new sound. The new sound will mask the audible
-    cutoff of the previous sound.</p>
-<p>In general, if the <em>disappearance</em> of an existing object would be
-less noticeable than the <em>absence</em> of a new one, this may be the
-right choice.</p>
+<p><em>Освободить занятый объект.</em> Допустим, есть пул звуков, и вы хотите проиграть новый звук, хотя пул заполнен. И вы <em>не хотите</em>, чтобы игрок пропустил новый звук: легко заметить, если автомат не стреляет иногда. Тогда лучшим решением будет найти самый тихий звук, который сейчас проигрывается и заменить его новым. Новый звук замаскирует пропажу старого.</p>
+<p>В общем, если <em>пропажа</em> существующего объекта будет менее заметной, чем <em>отсутствие</em> нового, это может оказаться верным направлением.</p>
 </li>
 <li>
-<p><em>Increase the size of the pool.</em> If your game lets you be a bit
-    more flexible with memory, you may be able to increase the size of
-    the pool at runtime, or create a second overflow pool. If you do
-    grab more memory in either of these ways, consider whether or not
-    the pool should contract to its previous size when the additional
-    capacity is no longer needed.</p>
+<p><em>Увеличить размер пула.</em> Если ваша игра может позволить себе гибкость с памятью, то можно увеличить размер пула прямо во время работы, или создать второй, вспомогательный пул. Если при этом будет использоваться слишком много памяти, можно добавить функцию уменьшения размера пула, когда дополнительная емкость больше не нужна.</p>
 </li>
 </ol>
-<h3><a href="#memory-size-for-each-object-is-fixed" name="memory-size-for-each-object-is-fixed">Memory size for each object is fixed</a></h3>
-<p>Most pool implementations store the objects in an array of in-place
-objects. If all of your objects are of the same type, this is
-fine. However, if you want to store objects of different types in the
-pool, or instances of subclasses that may add fields, you need to
-ensure that each slot in the pool has enough memory for the <em>largest</em>
-possible object. Otherwise, an unexpectedly large object will stomp
-over the next one and trash memory.</p>
-<p>At the same time, when your objects vary in size, you waste memory.
-Each slot needs to be big enough to accomodate the largest object. If
-objects are rarely that big, you&#8217;re throwing away memory every time
-you put a smaller one in that slot. It&#8217;s like going through airport
-security and using a huge carry-on-sized luggage tray just for your
-keys and wallet.</p>
-<p>When you find yourself burning a lot of memory this way, consider
-splitting the pool into <span name="pools">separate</span> pools for different sizes of
-object&#8202;&mdash;&#8202;big trays for luggage, little trays for pocket stuff.</p>
+<h3><a href="#для-каждого-объекта-выделяется-фиксированный-размер-памяти" name="для-каждого-объекта-выделяется-фиксированный-размер-памяти">Для каждого объекта выделяется фиксированный размер памяти</a></h3>
+<p>Большинство реализаций пула хранят объекты в простом массиве. Если все объекты одного типа, то это нормально. Но если типы объектов могут быть разные, или дочерний класс объекта добавляет себе поля, нужно учитывать это при выделении памяти для пула. Нужно убедиться, что пулу хватит памяти для размещения <em>самого большого</em> объекта. Иначе неожиданной большой объект затрет следующий в массиве и испортит память.</p>
+<p>В то же время, когда размер объекта варьируется, зря используется память. Место под каждый объект увеличено, поскольку большой объект может попасть в любое место. И если больших объектов мало, то память теряется каждый раз, когда вы помещаете в пул маленький объект. Это как проходить осмотр в аэропорту и положить свои ключи в поддон для чемодана.</p>
+<p>Если у вас такая ситуация, то можно рассмотреть возможность разделить пул на <span name="pools">отдельные</span> пулы для объектов разного размера&#8202;&mdash;&#8202;большие, как для чемоданов, и маленькие, как для ключей.</p>
 <aside name="pools">
-<p>This is a common pattern for implementing speed-efficient memory
-managers. The manager has a number of pools of different block sizes.
-When you ask it to allocate a block, it finds in an open slot in the
-pool of the appropriate size and allocates from that pool.</p>
+<p>Это общий подход для реализации ориентированных на скорость менеджеров памяти. Менеджер имеет несколько пулов для блоков разного размера. Когда вы запрашиваете блок памяти, он выбирается из пула подходящего размера.</p>
 </aside>
-<h3><a href="#reused-objects-aren't-automatically-cleared" name="reused-objects-aren't-automatically-cleared">Reused objects aren&#8217;t automatically cleared</a></h3>
-<p>Most memory managers have a debug feature that will clear freshly
-allocated or freed memory to some obvious magic value like
-<code>0xdeadbeef</code>. This helps you find painful bugs caused by uninitialized
-variables or using memory after it&#8217;s freed.</p>
-<p>Since our object pool isn&#8217;t going through the memory manager any more
-when it reuses an object, we lose that safety net. Worse, the memory
-used for a &#8220;new&#8221; object previously held an object of the
-exact same type. This makes it nearly impossible to tell if you forgot
-to initialize something when you created the new object: the memory
-where the object is stored may already contain <em>almost</em> correct data
-from its past life.</p>
-<p>Because of this, pay special care that the code that initializes new
-objects in the pool <em>fully</em> initializes the object. It may even be
-worth spending a bit of time adding a debug feature that <span name="clear">clears</span> the
-memory for an object slot when the object is reclaimed.</p>
+<h3><a href="#объекты-не-очищаются-автоматически" name="объекты-не-очищаются-автоматически">Объекты не очищаются автоматически</a></h3>
+<p>У менеджеров памяти есть специальная функция в режиме отладки, когда они заполняют только что выделенную или освобожденную память специальными значениями, типа <code>0xdeadbeef</code>. Это помогает вытащить наружу сложные шибки, которые вызваны использованием переменных, которые не инициализированы, или используют память после того, как она была освобождена.</p>
+<p>Поскольку наш пул объектов не пользуется менеджером памяти, мы теряем эту полезную функцию. Хуже того, память под новый объект содержит данные предыдущего объекта. Из-за этого почти невозможно узнать, что вы забыли инициализировать объект: память хранит старые значения от прошлого объекта, которые выглядят <em>практически</em> корректными.</p>
+<p>Следует внимательно следить за тем, что код, который создает объект в пуле <em>полностью</em> инициализирует объект. Возможно стоит даже потратить время на добавление специального поведения, которое <span name="clear">очищает</span> память перед тем, как запросят новый объект.</p>
 <aside name="clear">
 <p>Почту за честь, если вы будете использовать <code>0x1deadb0b</code>.</p>
 </aside>
-<h3><a href="#unused-objects-will-remain-in-memory" name="unused-objects-will-remain-in-memory">Unused objects will remain in memory</a></h3>
-<p>Object pools are less common in systems that support garbage
-collection because the memory manager will usually deal
-with fragmentation for you. But pools are still useful there to avoid
-the cost of allocation and deallocation, especially on mobile
-devices with slower CPUs and simpler GC implementations.</p>
-<p>If you do use an object pool there, beware of a potential conflict. Since
-the pool doesn&#8217;t actually deallocate objects when they&#8217;re no longer
-in use, they remain in memory. If they contain references to <em>other</em>
-objects, it will prevent the collector from reclaiming those too.
-To avoid this, when a pooled object is no longer in use, clear any
-references it has to other objects.</p>
-<h2><a href="#sample-code" name="sample-code">Sample Code</a></h2>
-<p>Real-world particle systems will often apply gravity, wind, friction,
-and other physical effects. Our much simpler sample will just move
-particles in a straight line for a certain number of frames and then
-kill the particle. Not exactly film caliber, but it should illustrate
-how to use an object pool.</p>
-<p>We&#8217;ll start with the simplest possible implementation. First up is the little
-particle class:</p>
+<h3><a href="#объекты-занимают-память,-даже-если-не-используются" name="объекты-занимают-память,-даже-если-не-используются">Объекты занимают память, даже если не используются</a></h3>
+<p>Пулы объектов редко встречаются в системах с автоматической сборкой мусора, потому что менеджер сам заботиться о том, чтобы не было дефрагментации памяти. Но пулы все равно пригодятся, если нужно нивелировать затраты на размещение и уничтожение ресурсов, особенно на мобильных устройствах с медленными процессорами и простыми стратегиями сборки мусора.</p>
+<p>Если вы используете пул объектов, может возникнуть потенциальный конфликт. Поскольку пул не уничтожает объекты на самом деле, они все ещё находятся в памяти. И если они содержат ссылки на <em>другие</em> объекты, это не позволит сборщику собрать неиспользуемую память. Чтобы избежать такого поведения, очищайте ссылки в объекте, когда возвращаете его в пул.</p>
+<h2><a href="#пример" name="пример">Пример</a></h2>
+<p>Системы частиц реального мира чаще всего добавляют гравитацию, ветер, трение и другие физические эффекты. Наш самый простой пример будет просто двигать частицы по прямой линии в течении пары кадров и убивать их после этого. Для блокбастера не подходит, но для демонстрации работы пула и как его использовать&#8202;&mdash;&#8202;вполне.</p>
+<p>Начнем с минимального кода. Сперва, маленький класс для частицы:</p>
 <div class="codehilite"><pre><span class="k">class</span> <span class="nc">Particle</span>
 <span class="p">{</span>
 <span class="nl">public:</span>
-  <span class="n">Particle</span><span class="p">()</span> <span class="o">:</span> <span class="n">framesLeft_</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="p">{}</span>
+  <span class="n">Particle</span><span class="p">()</span>
+  <span class="o">:</span> <span class="n">framesLeft_</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+  <span class="p">{}</span>
 
-  <span class="kt">void</span> <span class="n">init</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">,</span> <span class="kt">int</span> <span class="n">y</span><span class="p">,</span> <span class="kt">int</span> <span class="n">xVel</span><span class="p">,</span> <span class="kt">int</span> <span class="n">yVel</span><span class="p">,</span> <span class="kt">int</span> <span class="n">lifetime</span><span class="p">)</span>
+  <span class="kt">void</span> <span class="n">init</span><span class="p">(</span><span class="kt">double</span> <span class="n">x</span><span class="p">,</span> <span class="kt">double</span> <span class="n">y</span><span class="p">,</span>
+            <span class="kt">double</span> <span class="n">xVel</span><span class="p">,</span> <span class="kt">double</span> <span class="n">yVel</span><span class="p">,</span> <span class="kt">int</span> <span class="n">lifetime</span><span class="p">)</span>
   <span class="p">{</span>
     <span class="n">x_</span> <span class="o">=</span> <span class="n">x</span><span class="p">;</span> <span class="n">y_</span> <span class="o">=</span> <span class="n">y</span><span class="p">;</span>
     <span class="n">xVel_</span> <span class="o">=</span> <span class="n">xVel</span><span class="p">;</span> <span class="n">yVel_</span> <span class="o">=</span> <span class="n">yVel</span><span class="p">;</span>
@@ -241,40 +129,32 @@ particle class:</p>
 
   <span class="kt">void</span> <span class="n">animate</span><span class="p">()</span>
   <span class="p">{</span>
-    <span class="k">if</span> <span class="p">(</span><span class="n">inUse</span><span class="p">())</span>
-    <span class="p">{</span>
-      <span class="n">framesLeft_</span><span class="o">--</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">inUse</span><span class="p">())</span> <span class="k">return</span><span class="p">;</span>
 
-      <span class="n">x_</span> <span class="o">+=</span> <span class="n">xVel_</span><span class="p">;</span>
-      <span class="n">y_</span> <span class="o">+=</span> <span class="n">yVel_</span><span class="p">;</span>
-    <span class="p">}</span>
+    <span class="n">framesLeft_</span><span class="o">--</span><span class="p">;</span>
+    <span class="n">x_</span> <span class="o">+=</span> <span class="n">xVel_</span><span class="p">;</span>
+    <span class="n">y_</span> <span class="o">+=</span> <span class="n">yVel_</span><span class="p">;</span>
   <span class="p">}</span>
 
   <span class="kt">bool</span> <span class="n">inUse</span><span class="p">()</span> <span class="k">const</span> <span class="p">{</span> <span class="k">return</span> <span class="n">framesLeft_</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">;</span> <span class="p">}</span>
 
 <span class="nl">private:</span>
-  <span class="kt">int</span>  <span class="n">framesLeft_</span><span class="p">;</span>
-  <span class="kt">int</span>  <span class="n">x_</span><span class="p">,</span> <span class="n">y_</span><span class="p">;</span>
-  <span class="kt">int</span>  <span class="n">xVel_</span><span class="p">,</span> <span class="n">yVel_</span><span class="p">;</span>
+  <span class="kt">int</span> <span class="n">framesLeft_</span><span class="p">;</span>
+  <span class="kt">double</span> <span class="n">x_</span><span class="p">,</span> <span class="n">y_</span><span class="p">;</span>
+  <span class="kt">double</span> <span class="n">xVel_</span><span class="p">,</span> <span class="n">yVel_</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
 
 
-<p>The default constructor initializes the particle to &#8220;not in
-use.&#8221; A later call to <code>init()</code> initializes the particle to a
-live state.</p>
-<p>Particles are animated over time using the unsurprisingly named
-<code>animate()</code> function, which should be called once per frame.</p>
-<p>The pool needs to know which particles are available for reuse. It
-gets this from the particle&#8217;s <code>inUse()</code> function. It takes advantage
-of the fact that particles have a limited lifetime, and uses the
-<code>_framesLeft</code> variable to discover which particles are in use without
-having to store a separate flag.</p>
-<p>The pool class is also simple:</p>
+<p>Конструктор по умолчанию инициализирует частицу в состояние &#8220;свободна&#8221;. Вызов метода <code>init()</code> позже переводит частицу в живое состояние.</p>
+<p>Частицы анимированы с помощью метода, логично названного <code>animate()</code>, который вызывается один раз каждый кадр.</p>
+<p>Пулу необходимо знать, какие частицы свободны для использования. Это можно узнать, вызвав функцию <code>inUse()</code> у частицы. Эта функция использует факт, что  частицы живут несколько кадров, и можно использовать переменную <code>_framesLeft</code> чтобы понять, сколько частиц свободно без добавления отдельного флага.</p>
+<p>Класс пула также прост:</p>
 <div class="codehilite"><pre><span class="k">class</span> <span class="nc">ParticlePool</span>
 <span class="p">{</span>
 <span class="nl">public:</span>
-  <span class="kt">void</span> <span class="n">create</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">,</span> <span class="kt">int</span> <span class="n">y</span><span class="p">,</span> <span class="kt">int</span> <span class="n">xVel</span><span class="p">,</span> <span class="kt">int</span> <span class="n">yVel</span><span class="p">,</span> <span class="kt">int</span> <span class="n">lifetime</span><span class="p">);</span>
+  <span class="kt">void</span> <span class="n">create</span><span class="p">(</span><span class="kt">double</span> <span class="n">x</span><span class="p">,</span> <span class="kt">double</span> <span class="n">y</span><span class="p">,</span>
+              <span class="kt">double</span> <span class="n">xVel</span><span class="p">,</span> <span class="kt">double</span> <span class="n">yVel</span><span class="p">,</span> <span class="kt">int</span> <span class="n">lifetime</span><span class="p">);</span>
 
   <span class="kt">void</span> <span class="nf">animate</span><span class="p">()</span>
   <span class="p">{</span>
@@ -295,14 +175,10 @@ having to store a separate flag.</p>
 <aside name="update">
 <p>Метод <code>animate()</code>&#8202;&mdash;&#8202;это пример паттерна <a href="update-method.html" class="pattern">Update Method</a>.</p>
 </aside>
-<p>The particles themselves are simply stored in a fixed-size array in
-the class. In this sample implementation, the pool size is hardcoded
-in the class declaration, but this could be defined externally by
-using a dynamic array of a given size, or using a value template
-parameter.</p>
-<p>Creating a new particle is straightforward:</p>
-<div class="codehilite"><pre><span class="kt">void</span> <span class="n">ParticlePool</span><span class="o">::</span><span class="n">create</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">,</span> <span class="kt">int</span> <span class="n">y</span><span class="p">,</span> <span class="kt">int</span> <span class="n">xVel</span><span class="p">,</span> <span class="kt">int</span> <span class="n">yVel</span><span class="p">,</span>
-                          <span class="kt">int</span> <span class="n">lifetime</span><span class="p">)</span>
+<p>Сами частицы храняться в массиве фиксированного размера внутри класса. В этой простой реализации, размер пула известен заранее, в объявлении класса. Но можно и определить его снаружи и использовать динамические массивы, или использовать шаблонные реализации с размером.</p>
+<p>Создание новой частицы довольно просто:</p>
+<div class="codehilite"><pre><span class="kt">void</span> <span class="n">ParticlePool</span><span class="o">::</span><span class="n">create</span><span class="p">(</span><span class="kt">double</span> <span class="n">x</span><span class="p">,</span> <span class="kt">double</span> <span class="n">y</span><span class="p">,</span>
+                          <span class="kt">double</span> <span class="n">xVel</span><span class="p">,</span> <span class="kt">double</span> <span class="n">yVel</span><span class="p">,</span> <span class="kt">int</span> <span class="n">lifetime</span><span class="p">)</span>
 <span class="p">{</span>
   <span class="c1">// Find an available particle.</span>
   <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">POOL_SIZE</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span>
@@ -317,46 +193,24 @@ parameter.</p>
 </pre></div>
 
 
-<p>We iterate through the pool looking for the first available particle.
-When we find it, we initialize it and we&#8217;re done. Note that in this
-implementation, if there aren&#8217;t any available particles, we simply
-don&#8217;t create a new one.</p>
-<p>That&#8217;s all there is to a simple particle system, aside from rendering
-the particles, of course. We can now create a pool, and create some
-particles using it. The particles will automatically deactivate
-themselves when their lifetime has expired.</p>
-<p>This is good enough to ship a game, but keen eyes may have noticed
-that creating a new particle requires <span name="create">iterating</span> through (potentially)
-the entire collection until we find an open slot. If the pool is very
-large and mostly full, that can get slow. Let&#8217;s see how we can improve
-that.</p>
+<p>Проходим по всему пулу и ищем первую свободную. Инициализируем её и все. В этом варианте, если свободной частицы нет, то мы просто не создадим новую.</p>
+<p>Мы коснулись только самой простой системы частиц, не затрагивая систему отображения, конечно же. Мы можем сейчас создать пул и несколько частиц, которые автоматически деактивируются, когда их время закончится.</p>
+<p>Этого достаточно, чтобы выпустить игру, но внимательный глаз заметит, что создание новой частицы требует <span name="create">прохода</span> по массиву, возможно полного прохода, до тех пор, пока мы не найдем пустую частицу. Если пул достаточно большой и заполнен почти полностью, то этот процесс затянется. Посмотрим, как мы можем этого избежать.</p>
 <aside name="create">
-<p>Creating a particle has O(n) complexity, for those of us who remember
-our algorithms class.</p>
+<p>Создание частицы имеет сложность O(n). Это для тех, кто помнит, что это значит.</p>
 </aside>
 <h3><a href="#список-свободных-объектов" name="список-свободных-объектов">Список свободных объектов</a></h3>
-<p>If we don&#8217;t want to waste time <em>finding</em> free particles, the obvious answer is
-to not lose track of them. We could store a separate list of pointers to each
-unused particle. Then, when we need to create a particle, we just remove the
-first pointer from the list and reuse the particle it points to.</p>
-<p>Unfortunately, this would require us to maintain an entire separate array with
-as many pointers as there are objects in the pool. After all, when we first
-create the pool, <em>all</em> particles are unused, so the list would initially have a
-pointer to every object in the pool.</p>
-<p>It would be nice to fix our performance problems <em>without</em> sacrificing any
-memory. Conveniently, there is some memory already lying around we can borrow:
-the data for the unused particles themselves.</p>
-<p>When a particle isn&#8217;t in use, most of its state is irrelevant. Its position and
-velocity aren&#8217;t being used. The only state it needs is the stuff required to
-tell if it&#8217;s dead. In our example, that&#8217;s the <code>_framesLeft</code> member. All those
-other bits can be reused. Here&#8217;s a revised particle:</p>
+<p>Если задаться целью не тратить время на <em>поиск</em> свободных частиц, то очевидный ответ&#8202;&mdash;&#8202;это не упускать их из виду с самого начала. Мы можем устроить дополнительный список указателей на неиспользуемые частицы. Теперь, когда нам нужно создать частицу, мы достаем первый указатель из этого списка и используем частицу, на который он указывает.</p>
+<p>К сожалению, это ведет к ещё одному отдельному массиву, который может по размерам сравняться с основным. В конце  концов, когда мы только создаем пул, <em>все</em> частицы в нем свободны, так что вспомогательный массив изначально содержит все частицы из списка.</p>
+<p>Было бы здорово избежать проблем, <em>не занимая</em> памяти дополнительно. Например, мы можем воспользоваться памятью, где уже лежат эти свободные частицы. </p>
+<p>Когда частица свободна, то большинство её аттрибутов не имеют смысла. Координаты и скорость у свободной частицы не используются. Единственное что нужно&#8202;&mdash;&#8202;это указание того, что частица дествительно мертва. В нашем примере, это поле <code>_framesLeft</code>. Все остальные биты можно использовать под свои нужды. Вот как это выглядит:</p>
 <div class="codehilite"><pre><span class="k">class</span> <span class="nc">Particle</span>
 <span class="p">{</span>
 <span class="nl">public:</span>
   <span class="c1">// ...</span>
 
-  <span class="n">Particle</span> <span class="o">*</span><span class="n">getNext</span><span class="p">()</span> <span class="k">const</span> <span class="p">{</span> <span class="k">return</span> <span class="n">state_</span><span class="p">.</span><span class="n">next</span><span class="p">;</span> <span class="p">}</span>
-  <span class="kt">void</span> <span class="n">setNext</span><span class="p">(</span><span class="n">Particle</span> <span class="o">*</span><span class="n">next</span><span class="p">)</span> <span class="p">{</span> <span class="n">state_</span><span class="p">.</span><span class="n">next</span> <span class="o">=</span> <span class="n">next</span><span class="p">;</span> <span class="p">}</span>
+  <span class="n">Particle</span><span class="o">*</span> <span class="n">getNext</span><span class="p">()</span> <span class="k">const</span> <span class="p">{</span> <span class="k">return</span> <span class="n">state_</span><span class="p">.</span><span class="n">next</span><span class="p">;</span> <span class="p">}</span>
+  <span class="kt">void</span> <span class="n">setNext</span><span class="p">(</span><span class="n">Particle</span><span class="o">*</span> <span class="n">next</span><span class="p">)</span> <span class="p">{</span> <span class="n">state_</span><span class="p">.</span><span class="n">next</span> <span class="o">=</span> <span class="n">next</span><span class="p">;</span> <span class="p">}</span>
 
 <span class="nl">private:</span>
   <span class="kt">int</span> <span class="n">framesLeft_</span><span class="p">;</span>
@@ -366,50 +220,33 @@ other bits can be reused. Here&#8217;s a revised particle:</p>
     <span class="c1">// State when it&#39;s in use.</span>
     <span class="k">struct</span>
     <span class="p">{</span>
-      <span class="kt">int</span>  <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">;</span>
-      <span class="kt">int</span>  <span class="n">xVel</span><span class="p">,</span> <span class="n">yVel</span><span class="p">;</span>
+      <span class="kt">double</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">;</span>
+      <span class="kt">double</span> <span class="n">xVel</span><span class="p">,</span> <span class="n">yVel</span><span class="p">;</span>
     <span class="p">}</span> <span class="n">live</span><span class="p">;</span>
 
     <span class="c1">// State when it&#39;s available.</span>
-    <span class="n">Particle</span> <span class="o">*</span><span class="n">next</span><span class="p">;</span>
+    <span class="n">Particle</span><span class="o">*</span> <span class="n">next</span><span class="p">;</span>
   <span class="p">}</span> <span class="n">state_</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
 
 
-<p>We&#8217;ve gotten all of the member variables except for <code>framesLeft_</code> and moved them
-into a <code>live</code> struct inside a <code>state_</code> <span name="union">union</span>. This
-struct holds the particle&#8217;s state when it&#8217;s being animated. When the particle is
-unused, the other case of the union, the <code>next</code> member, is used. It holds a
-pointer to the next available particle after this one.</p>
+<p>Мы взяли все поля, кроме <code>framesLeft_</code>, и поместили их в <span name="union">объединение</span> <code>state_</code>. Эта структура содержит данные, которые используются при анимации. Когда частица не занята, то используется только <code>next</code> из этого объединения. Это указатель на следующую свободную частицу.</p>
 <aside name="union">
-<p>Unions don&#8217;t seem to be used that often these days, so the syntax may be
-unfamiliar to you. If you&#8217;re on a game team, you&#8217;ve probably got a &#8220;memory
-guru&#8221;, that beleaguered compatriot whose job it is to come up with a solution
-when the game has inevitably blown its memory budget. Ask them about unions.
-They&#8217;ll know all about them and other fun bit-packing tricks.</p>
+<p>Объединения не часто используются в наши дни, так что синтаксис может показаться новым. Если вы работаете в команде, у вас наверняка есть гуру, чья задача решать трудности, из-за которых игра выбивается из бюджета. Спросите у него насчет объединений&#8202;&mdash;&#8202;узнаете и о них, и о других прикольных трюках с упаковкой данных.</p>
 </aside>
-<p>We can use these pointers to build a linked list that chains together every
-unused particle in the pool. We have the list of available particles we need,
-but did&#8217;t need to use any additional memory. Instead, we cannibalize the memory
-of the dead particles themselves to store the list.</p>
-<p>This clever technique is called a <a href="http://en.wikipedia.org/wiki/Free_list"><em>free
-list</em></a>. For it to work, we need to make
-sure the pointers are initialized correctly and are maintained when particles
-are created and destroyed. And, of course, we need to keep track of the list&#8217;s
-head:</p>
+<p>Можно использовать эту указатели, чтобы построить связный список из свободных частиц. При это дополнительной памяти использоваться не будет. Вместо этого, мы утилизируем память, которая не приносит пользы в данный момент, чтобы хранить наш список.</p>
+<p>Это умная техника называется <a href="http://en.wikipedia.org/wiki/Free_list"><em>свободный список</em></a>. Для того, чтобы это заработало, надо правильно инициализировать указатель и следить за ним, когда частица создается и уничтожается. И, конечно, надо где-то хранить начало списка:</p>
 <div class="codehilite"><pre><span class="k">class</span> <span class="nc">ParticlePool</span>
 <span class="p">{</span>
   <span class="c1">// ...</span>
 <span class="nl">private:</span>
-  <span class="n">Particle</span> <span class="o">*</span><span class="n">firstAvailable_</span><span class="p">;</span>
+  <span class="n">Particle</span><span class="o">*</span> <span class="n">firstAvailable_</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
 
 
-<p>When a pool is first created, <em>all</em> of the particles are available, so
-our free list should thread through the entire pool. The pool
-constructor sets that up:</p>
+<p>Когда пул создается, <em>все</em> частицы свободны, так что этот свободный список проходит через все частицы. За это отвечает конструктор:</p>
 <div class="codehilite"><pre><span class="n">ParticlePool</span><span class="o">::</span><span class="n">ParticlePool</span><span class="p">()</span>
 <span class="p">{</span>
   <span class="c1">// The first one is available.</span>
@@ -427,19 +264,18 @@ constructor sets that up:</p>
 </pre></div>
 
 
-<p>Now to create a new particle we just jump directly to the <span name="first">first</span>
-available one:</p>
+<p>Теперь, чтобы создать новую частицу, мы просто вытаскиваем <span name="first">первую</span> свободную:</p>
 <aside name="first">
-<p>O(1) complexity, baby! Now we&#8217;re cooking!</p>
+<p>Сложность O(1)!</p>
 </aside>
-<div class="codehilite"><pre><span class="kt">void</span> <span class="n">ParticlePool</span><span class="o">::</span><span class="n">create</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">,</span> <span class="kt">int</span> <span class="n">y</span><span class="p">,</span> <span class="kt">int</span> <span class="n">xVel</span><span class="p">,</span> <span class="kt">int</span> <span class="n">yVel</span><span class="p">,</span>
-                          <span class="kt">int</span> <span class="n">lifetime</span><span class="p">)</span>
+<div class="codehilite"><pre><span class="kt">void</span> <span class="n">ParticlePool</span><span class="o">::</span><span class="n">create</span><span class="p">(</span><span class="kt">double</span> <span class="n">x</span><span class="p">,</span> <span class="kt">double</span> <span class="n">y</span><span class="p">,</span>
+                          <span class="kt">double</span> <span class="n">xVel</span><span class="p">,</span> <span class="kt">double</span> <span class="n">yVel</span><span class="p">,</span> <span class="kt">int</span> <span class="n">lifetime</span><span class="p">)</span>
 <span class="p">{</span>
   <span class="c1">// Make sure the pool isn&#39;t full.</span>
   <span class="n">assert</span><span class="p">(</span><span class="n">firstAvailable_</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">);</span>
 
   <span class="c1">// Remove it from the available list.</span>
-  <span class="n">Particle</span> <span class="o">*</span><span class="n">newParticle</span> <span class="o">=</span> <span class="n">firstAvailable_</span><span class="p">;</span>
+  <span class="n">Particle</span><span class="o">*</span> <span class="n">newParticle</span> <span class="o">=</span> <span class="n">firstAvailable_</span><span class="p">;</span>
   <span class="n">firstAvailable_</span> <span class="o">=</span> <span class="n">newParticle</span><span class="o">-&gt;</span><span class="n">getNext</span><span class="p">();</span>
 
   <span class="n">newParticle</span><span class="o">-&gt;</span><span class="n">init</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">xVel</span><span class="p">,</span> <span class="n">yVel</span><span class="p">,</span> <span class="n">lifetime</span><span class="p">);</span>
@@ -447,13 +283,11 @@ available one:</p>
 </pre></div>
 
 
-<p>When a particle gives up the ghost we just thread it back onto the
-list:</p>
+<p>Когда частица умирает, мы кладем её обратно в этот список:</p>
 <div class="codehilite"><pre><span class="kt">void</span> <span class="n">ParticlePool</span><span class="o">::</span><span class="n">animate</span><span class="p">()</span>
 <span class="p">{</span>
   <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">POOL_SIZE</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span>
   <span class="p">{</span>
-    <span class="c1">// Particle::animate returns true if the particle died.</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">particles_</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">animate</span><span class="p">())</span>
     <span class="p">{</span>
       <span class="c1">// Add this particle to the front of the list.</span>
@@ -465,40 +299,28 @@ list:</p>
 </pre></div>
 
 
-<p>There you go, a nice little object pool with constant-time creation
-and deletion.</p>
-<h2><a href="#design-decisions" name="design-decisions">Design Decisions</a></h2>
-<p>As you&#8217;ve seen, the simplest object pool implementation is almost
-trivial: create an array of objects and reinitialize them as needed.
-Production code is rarely that minimal. There are several ways to
-expand on that to make the pool more generic, safer to use, or easier
-to maintain. As you implement pools in your games, you&#8217;ll need to
-answer these questions:</p>
-<h3><a href="#are-objects-coupled-to-the-pool?" name="are-objects-coupled-to-the-pool?">Are objects coupled to the pool?</a></h3>
-<p>The first question you&#8217;ll run into when writing an object pool is
-whether the objects themselves know they are in a pool. Most of
-the time they will, but you won&#8217;t have that luxury when writing a
-generic pool class that can hold arbitrary objects.</p>
+<p>Вот так, маленький пул объектов, который тратит константное время на создание и удаление объектов.</p>
+<h2><a href="#архитектурные-решения" name="архитектурные-решения">Архитектурные решения</a></h2>
+<p>Простейшая реализация пула почти тривиальна: создать массив объектов и переинициализация их, когда понадобится. В реальной жизни бывают случаи посложнее. Если несколько способов сделать пул более типизированным, безопасным, или простым в использовании. Когда вы приступите к реализации пула в своем коде, придется ответить на следующие вопросы:</p>
+<h3><a href="#объекты-привязаны-к-пулу?" name="объекты-привязаны-к-пулу?">Объекты привязаны к пулу?</a></h3>
+<p>Первый вопрос, с которым вы столкнетесь, это должны ли объекты знать о пуле, в котором они лежат. Большую часть времени&#8202;&mdash;&#8202;да, но хочется сделать пул как можно более общим, без указания на класс, который он будет поддерживать.</p>
 <ul>
 <li>
-<p><strong>If objects are coupled to the pool:</strong></p>
+<p><strong>Когда объекты привязаны к пулу:</strong></p>
 <ul>
 <li>
-<p><em>The implementation is simpler.</em> You can simply put an &#8220;in
-    use&#8221; flag or function in your pooled object and be done with
-    it.</p>
+<p><em>Реализация проста.</em> Можно просто добавить флаг или функцию типа &#8220;я свободен&#8221; в объект.</p>
 </li>
 <li>
-<p><em>You can ensure that the objects can only be created by the pool.</em>
-    In C++, a simple way to do this is to make the pool class a friend
-    of the object class, and then make the object&#8217;s constructor
-    private.</p>
+<p><em>Объекты будут создаваться только пулом.</em> В C++ можно сделать пул friend-классом объекта и закрыть публичный конструктор.</p>
 <div class="codehilite"><pre><span class="k">class</span> <span class="nc">Particle</span>
 <span class="p">{</span>
   <span class="k">friend</span> <span class="k">class</span> <span class="nc">ParticlePool</span><span class="p">;</span>
 
 <span class="nl">private:</span>
-  <span class="n">Particle</span><span class="p">()</span> <span class="o">:</span> <span class="n">inUse_</span><span class="p">(</span><span class="nb">false</span><span class="p">)</span> <span class="p">{}</span>
+  <span class="n">Particle</span><span class="p">()</span>
+  <span class="o">:</span> <span class="n">inUse_</span><span class="p">(</span><span class="nb">false</span><span class="p">)</span>
+  <span class="p">{}</span>
 
   <span class="kt">bool</span> <span class="n">inUse_</span><span class="p">;</span>
 <span class="p">};</span>
@@ -510,34 +332,21 @@ generic pool class that can hold arbitrary objects.</p>
 </pre></div>
 
 
-<p>This relationship documents the intended way to use the class and
-ensures your users don&#8217;t create objects that aren&#8217;t tracked by the
-pool.</p>
+<p>Эта связь показывает механизм работы с объектом и уведомляет программиста, что не надо создавать объекты вне пула.</p>
 </li>
 <li>
-<p><em>You may be able to avoid storing an explicit &#8220;in use&#8221;
-    flag.</em> Many objects already retain some state that could be used
-    to tell whether it is alive or not. For example, a particle may be
-    available for reuse if its current position is offscreen. If the
-    object class knows it may be used in a pool, it can provide an
-    <code>inUse()</code> method to query that state. This saves the pool from
-    having to burn some extra memory storing a bunch of &#8220;in
-    use&#8221; flags.</p>
+<p><em>Можно попробовать избежать явного флага занятости.</em> Большинство объектов содержать информацию, которую можно использовать в качестве подобного флага. Например, частица может быть свободна, если её координаты находятся вне экрана. Когда объект используется в пуле, то метод <code>inUse()</code> может использовать эту информацию. Это поможет сэкономить немного места.</p>
 </li>
 </ul>
 </li>
 <li>
-<p><strong>If objects are not coupled to the pool:</strong></p>
+<p><strong>Если объект и пул не связаны:</strong></p>
 <ul>
 <li>
-<p><em>Objects of any type can be pooled.</em> This is the big advantage. By
-    decoupling objects from the pool, you may be able to implement a
-    generic reusable pool class.</p>
+<p><em>Можно использовать пул под любые классы.</em> Довольно сильное преимущество. Можно написать пул, которому вообще не нужно будет знать о классе, который он хранить.</p>
 </li>
 <li>
-<p><em>The &#8220;in use&#8221; state must be tracked outside the
-    objects.</em> The simplest way to do this is by creating a separate
-    bit field.</p>
+<p><em>Флаг занятости придется отслеживать снаружи.</em> В простейшем случае для этого добавляется набор флагов.</p>
 <div class="codehilite"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">TObject</span><span class="o">&gt;</span>
 <span class="k">class</span> <span class="nc">GenericPool</span>
 <span class="p">{</span>
@@ -554,45 +363,42 @@ pool.</p>
 </ul>
 </li>
 </ul>
-<h3><a href="#what-is-responsible-for-initializing-the-reused-objects?" name="what-is-responsible-for-initializing-the-reused-objects?">What is responsible for initializing the reused objects?</a></h3>
-<p>In order to reuse an existing object, it must be reinitialized with
-new state. A key question here is whether to reinitialize the object
-inside the pool class or outside.</p>
+<h3><a href="#кто-инициализирует-объект?" name="кто-инициализирует-объект?">Кто инициализирует объект?</a></h3>
+<p>Когда вы воскрешаете объект, его надо как-то инициализировать. Ключевой момент здесь&#8202;&mdash;&#8202;делать это внутри пула или снаружи.</p>
 <ul>
 <li>
-<p><strong>If the pool reinitializes internally:</strong></p>
+<p><strong>Если этим занимается пул:</strong></p>
 <ul>
 <li>
-<p><em>The pool can completely encapsulate its objects</em>. Depending on
-    the other capabilities your objects need, you may be able to keep
-    them completely internal to the pool. This makes sure that other
-    code doesn&#8217;t maintain references to objects that could be
-    unexpectedly reused.</p>
+<p><em>Объекты полностью инкапсулированы в пуле</em>. Если вам немного нужно от самих объектов, то их вообще можно спрятать внутри пула. Тогда не будет проблем с тем, что кто-то получает указатель на мертвую частицу.</p>
 </li>
 <li>
-<p><em>The pool is tied to how objects are initialized</em>. A pooled object
-    may offer multiple functions that initialize it. If the pool
-    manages initialization, its interface needs to support all of
-    those and forward them to the object.</p>
+<p><em>Пул жестко привязан к вариантам инициализации</em>. Объект пула может предоставить несколько функций для инициализации. Если пул этим занимается, то его интерфейс должен поддерживать все варианты и делегировать вызовы к создаваемому объекту.</p>
 <div class="codehilite"><pre><span class="k">class</span> <span class="nc">Particle</span>
 <span class="p">{</span>
   <span class="c1">// Multiple ways to initialize.</span>
-  <span class="kt">void</span> <span class="n">init</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">,</span> <span class="kt">int</span> <span class="n">y</span><span class="p">);</span>
-  <span class="kt">void</span> <span class="nf">init</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">,</span> <span class="kt">int</span> <span class="n">y</span><span class="p">,</span> <span class="kt">int</span> <span class="n">xVel</span><span class="p">,</span> <span class="kt">int</span> <span class="n">yVel</span><span class="p">);</span>
-  <span class="kt">void</span> <span class="nf">init</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">,</span> <span class="kt">int</span> <span class="n">y</span><span class="p">,</span> <span class="kt">double</span> <span class="n">direction</span><span class="p">,</span> <span class="kt">double</span> <span class="n">speed</span><span class="p">);</span>
+  <span class="kt">void</span> <span class="n">init</span><span class="p">(</span><span class="kt">double</span> <span class="n">x</span><span class="p">,</span> <span class="kt">double</span> <span class="n">y</span><span class="p">);</span>
+  <span class="kt">void</span> <span class="nf">init</span><span class="p">(</span><span class="kt">double</span> <span class="n">x</span><span class="p">,</span> <span class="kt">double</span> <span class="n">y</span><span class="p">,</span> <span class="kt">double</span> <span class="n">angle</span><span class="p">);</span>
+  <span class="kt">void</span> <span class="nf">init</span><span class="p">(</span><span class="kt">double</span> <span class="n">x</span><span class="p">,</span> <span class="kt">double</span> <span class="n">y</span><span class="p">,</span> <span class="kt">double</span> <span class="n">xVel</span><span class="p">,</span> <span class="kt">double</span> <span class="n">yVel</span><span class="p">);</span>
 <span class="p">};</span>
 
 <span class="k">class</span> <span class="nc">ParticlePool</span>
 <span class="p">{</span>
 <span class="nl">public:</span>
-  <span class="kt">void</span> <span class="n">create</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">,</span> <span class="kt">int</span> <span class="n">y</span><span class="p">)</span>
-  <span class="p">{</span> <span class="cm">/* forward to Particle... */</span> <span class="p">}</span>
+  <span class="kt">void</span> <span class="n">create</span><span class="p">(</span><span class="kt">double</span> <span class="n">x</span><span class="p">,</span> <span class="kt">double</span> <span class="n">y</span><span class="p">)</span>
+  <span class="p">{</span>
+    <span class="c1">// Forward to Particle...</span>
+  <span class="p">}</span>
 
-  <span class="kt">void</span> <span class="n">create</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">,</span> <span class="kt">int</span> <span class="n">y</span><span class="p">,</span> <span class="kt">int</span> <span class="n">xVel</span><span class="p">,</span> <span class="kt">int</span> <span class="n">yVel</span><span class="p">)</span>
-  <span class="p">{</span> <span class="cm">/* forward to Particle... */</span> <span class="p">}</span>
+  <span class="kt">void</span> <span class="n">create</span><span class="p">(</span><span class="kt">double</span> <span class="n">x</span><span class="p">,</span> <span class="kt">double</span> <span class="n">y</span><span class="p">,</span> <span class="kt">double</span> <span class="n">angle</span><span class="p">)</span>
+  <span class="p">{</span>
+    <span class="c1">// Forward to Particle...</span>
+  <span class="p">}</span>
 
-  <span class="kt">void</span> <span class="n">create</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">,</span> <span class="kt">int</span> <span class="n">y</span><span class="p">,</span> <span class="kt">double</span> <span class="n">direction</span><span class="p">,</span> <span class="kt">double</span> <span class="n">speed</span><span class="p">)</span>
-  <span class="p">{</span> <span class="cm">/* forward to Particle... */</span> <span class="p">}</span>
+  <span class="kt">void</span> <span class="n">create</span><span class="p">(</span><span class="kt">double</span> <span class="n">x</span><span class="p">,</span> <span class="kt">double</span> <span class="n">y</span><span class="p">,</span> <span class="kt">double</span> <span class="n">xVel</span><span class="p">,</span> <span class="kt">double</span> <span class="n">yVel</span><span class="p">)</span>
+  <span class="p">{</span>
+    <span class="c1">// Forward to Particle...</span>
+  <span class="p">}</span>
 <span class="p">};</span>
 </pre></div>
 
@@ -601,25 +407,23 @@ inside the pool class or outside.</p>
 </ul>
 </li>
 <li>
-<p><strong>If outside code initializes the object:</strong></p>
+<p><strong>Если инициализировать снаружи:</strong></p>
 <ul>
 <li>
-<p><em>The pool&#8217;s interface can be simpler.</em> Instead of offering
-    multiple functions to cover each way an object can be initialized,
-    the pool can simply return a reference to the new object.</p>
+<p><em>Интерфейс пула становиться проще.</em> Вместо того, чтобы покрывать все варианты инициализации, пул может просто возвращать ссылку на новый объект.</p>
 <div class="codehilite"><pre><span class="k">class</span> <span class="nc">Particle</span>
 <span class="p">{</span>
 <span class="nl">public:</span>
   <span class="c1">// Multiple ways to initialize.</span>
-  <span class="kt">void</span> <span class="n">init</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">,</span> <span class="kt">int</span> <span class="n">y</span><span class="p">);</span>
-  <span class="kt">void</span> <span class="nf">init</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">,</span> <span class="kt">int</span> <span class="n">y</span><span class="p">,</span> <span class="kt">int</span> <span class="n">xVel</span><span class="p">,</span> <span class="kt">int</span> <span class="n">yVel</span><span class="p">);</span>
-  <span class="kt">void</span> <span class="nf">init</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">,</span> <span class="kt">int</span> <span class="n">y</span><span class="p">,</span> <span class="kt">double</span> <span class="n">direction</span><span class="p">,</span> <span class="kt">double</span> <span class="n">speed</span><span class="p">);</span>
+  <span class="kt">void</span> <span class="n">init</span><span class="p">(</span><span class="kt">double</span> <span class="n">x</span><span class="p">,</span> <span class="kt">double</span> <span class="n">y</span><span class="p">);</span>
+  <span class="kt">void</span> <span class="nf">init</span><span class="p">(</span><span class="kt">double</span> <span class="n">x</span><span class="p">,</span> <span class="kt">double</span> <span class="n">y</span><span class="p">,</span> <span class="kt">double</span> <span class="n">angle</span><span class="p">);</span>
+  <span class="kt">void</span> <span class="nf">init</span><span class="p">(</span><span class="kt">double</span> <span class="n">x</span><span class="p">,</span> <span class="kt">double</span> <span class="n">y</span><span class="p">,</span> <span class="kt">double</span> <span class="n">xVel</span><span class="p">,</span> <span class="kt">double</span> <span class="n">yVel</span><span class="p">);</span>
 <span class="p">};</span>
 
 <span class="k">class</span> <span class="nc">ParticlePool</span>
 <span class="p">{</span>
 <span class="nl">public:</span>
-  <span class="n">Particle</span> <span class="o">*</span><span class="n">create</span><span class="p">()</span>
+  <span class="n">Particle</span><span class="o">*</span> <span class="n">create</span><span class="p">()</span>
   <span class="p">{</span>
     <span class="c1">// Return reference to available particle...</span>
   <span class="p">}</span>
@@ -629,24 +433,19 @@ inside the pool class or outside.</p>
 </pre></div>
 
 
-<p>The caller can then initialize the object by calling any method
-the object exposes.</p>
+<p>И тогда уже вызывающая сторона будет проводить необходимую инициализацию.</p>
 <div class="codehilite"><pre><span class="n">ParticlePool</span> <span class="n">pool</span><span class="p">;</span>
 
 <span class="n">pool</span><span class="p">.</span><span class="n">create</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">init</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">);</span>
-<span class="n">pool</span><span class="p">.</span><span class="n">create</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">init</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">);</span>
-<span class="n">pool</span><span class="p">.</span><span class="n">create</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">init</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mf">3.3f</span><span class="p">,</span> <span class="mf">4.4f</span><span class="p">);</span>
+<span class="n">pool</span><span class="p">.</span><span class="n">create</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">init</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">);</span>
+<span class="n">pool</span><span class="p">.</span><span class="n">create</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">init</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mf">3.3</span><span class="p">,</span> <span class="mf">4.4</span><span class="p">);</span>
 </pre></div>
 
 
 </li>
 <li>
-<p><em>Outside code may need to handle the failure to create a new
-    object.</em> The previous example assumes that <code>create()</code> will always
-    successfully return a pointer to an object. If the pool is full,
-    though, it may return <code>NULL</code> instead. To be safe, you&#8217;ll need to
-    check for that before you try to initialize the object.</p>
-<div class="codehilite"><pre><span class="n">Particle</span> <span class="o">*</span><span class="n">particle</span> <span class="o">=</span> <span class="n">pool</span><span class="p">.</span><span class="n">create</span><span class="p">();</span>
+<p><em>Нужно учесть, что получение нового объекта может сорваться.</em> В предыдущем примере предполагается, что <code>create()</code> всегда вернет валидный указатель на объект. Если пул заполнен, то можно в ответ получить <code>NULL</code>. Чтоб обезопаситься, надо проверять это перед использованием указателя.</p>
+<div class="codehilite"><pre><span class="n">Particle</span><span class="o">*</span> <span class="n">particle</span> <span class="o">=</span> <span class="n">pool</span><span class="p">.</span><span class="n">create</span><span class="p">();</span>
 <span class="k">if</span> <span class="p">(</span><span class="n">particle</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="n">particle</span><span class="o">-&gt;</span><span class="n">init</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">);</span>
 </pre></div>
 
@@ -655,25 +454,14 @@ the object exposes.</p>
 </ul>
 </li>
 </ul>
-<h2><a href="#see-also" name="see-also">See Also</a></h2>
+<h2><a href="#что-ещё" name="что-ещё">Что ещё</a></h2>
 <ul>
 <li>
-<p>This looks a lot like the <a class="gof-pattern" href="flyweight.html">
-    Flyweight pattern</a>. Both maintain a collection of reusable objects. The
-    difference is what &#8220;reuse&#8221; means. Flyweight objects are reused by sharing
-    the same instance between multiple owners <em>simultaneously</em>. It avoids
-    <em>duplicate</em> memory usage by using the same object in multiple contexts.</p>
-<p>The objects in a pool get reused too, but only over time. &#8220;Reuse&#8221; in the
-context of an object pool means reclaiming the memory for an object
-<em>after</em> the original owner is done with it. With an object pool, there
-isn&#8217;t any expectation that an object will be shared within its
-lifetime.</p>
+<p>Все это очень похоже на <a class="gof-pattern" href="flyweight.html">Flyweight pattern</a>. Оба содержат список переиспользуемых объектов. Отличие в разном смысле слова &#8220;переиспользовать&#8221;. Легкие объекты используются несколькими владельцами <em>одновременно</em>. Это экономит память, когда вы используете один и тот же объект в разных контекстах.</p>
+<p>Объекты пула тоже используются вторично, но только со временем. &#8220;Использование&#8221; в контексте пула означает, что память используется заново, когда предыдущему владельцу она уже <em>не нужна</em>. Пул не предполагает одновременной работы с живым объектом из нескольких мест.  </p>
 </li>
 <li>
-<p>Packing a bunch of objects of the same type together in memory helps keep
-    your CPU cache full as you iterate over those objects. The
-    <a class="pattern" href="data-locality.html">Data Locality pattern</a>
-    is all about that.</p>
+<p>Упаковка набора объектов одного типа рядом друг с другом положительно сказываться на кэше просессора. Глава <a class="pattern" href="data-locality.html">Компактность данных</a> рассматривает эту тему.</p>
 </li>
 </ul>
 <nav>
