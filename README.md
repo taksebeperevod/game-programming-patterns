@@ -1,3 +1,6 @@
+Основная группа обсуждения русского перевода в
+[Google Groups](groups.google.com/forum/#!topic/game-programming-patterns-translations/OxL0CL3QFTA).
+
 ## Этап 1. Перевод
 
 0. master в этом проекте совпадает с мастером оригинального. Так можно будет сразу видеть отличия ветки
