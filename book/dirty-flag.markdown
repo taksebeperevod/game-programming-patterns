@@ -58,7 +58,7 @@
 описывает её положение на корабле, и так далее.
 
 <span name="pirate"></span>
-<img src="images/dirty-flag-pirate.png" alt="A pirate ship containing a crow's nest with a pirate in it with a parrot on his shoulder." />
+<img src="images/dirty-flag-pirate.png" alt="На пиратском корабле дозорная бочка с пиратом с попугаем на плече." />
 
 <aside name="pirate">
 
@@ -90,7 +90,7 @@
 преобразования друг на друга поочередно. Тогда глобальное преобразование попугая будет:
 
 <span name="degenerate"></span>
-<img src="images/dirty-flag-multiply.png" alt="The parrot's world position comes from multiplying the local positions for the ship, nest, pirate, and parrot." />
+<img src="images/dirty-flag-multiply.png" alt="Глобальное преобразованеи попугая зависит от наложения локальных преобразований корабля, марса, пирата и попугая." />
 
 <aside name="degenerate">
 
@@ -134,7 +134,7 @@
 это выльется?
 
 <span name="stars"></span>
-<img src="images/dirty-flag-update-bad.png" alt="Any time an object moves, the world coordinates are recalculated eagerly and redundantly." />
+<img src="images/dirty-flag-update-bad.png" alt="Каждый раз, когда объект двигается, глобальное преобразование пересчитывается моментально и избыточно." />
 
 <aside name="stars">
 
@@ -179,7 +179,7 @@
 Если мы применим этот подход, и повторим пример с четырьмя объектами, то в
 результате у нас получится:
 
-<img src="images/dirty-flag-update-good.png" alt="By deferring until all moves are done, we only recalculate once." />
+<img src="images/dirty-flag-update-good.png" alt="Откладывая рассчеты до конца всех передвижений, мы сделаем их один раз." />
 
 Это то, на что мы надеялись, - глобальное преобразование для каждого затронутого
 объекта вычисляется ровно один раз. С помощью всего одного бита, этот паттерн
@@ -274,7 +274,7 @@
 Здесь первичные данные -- это открытый в редакторе документ, а вторичные --
 файл на диске.
 
-<img src="images/dirty-flag-title-bar.png" alt="A window titlebar showing the little icon representing unsaved changes." />
+<img src="images/dirty-flag-title-bar.png" alt="В заголовке окна маленькая иконка отображает несохраненное состояние." />
 
 Много программ не сохраняют изменения на диск до тех пор, пока приложение или
 документ не закроются. Это нормально, но если неожиданно
