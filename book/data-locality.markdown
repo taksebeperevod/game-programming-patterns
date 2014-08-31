@@ -18,7 +18,7 @@
 
 <span name="legend"></span>
 
-<img src="images/data-locality-chart.png" alt="A chart showing processor and RAM speed from 1980 to 2010. Processor speed increases quickly, but RAM speed lags behind." />
+<img src="images/data-locality-chart.png" alt="График показывает увеличение производительности CPU и RAM с 1980 по 2010. Производительность процессоров растет быстро, RAM плетется позади." />
 
 <aside name="legend">
 
@@ -152,7 +152,7 @@ Tony Albrecht's "[Pitfalls of Object-Oriented Programming][poop]&rdquo;.
 до 128 байт -- и кладет их в кэш. Эта порция памяти называется
 *кэш-линией*.
 
-<img src="images/data-locality-cache-line.png" alt="A cache line showing the one byte requested along with the adjacent bytes that also get loaded into the cache." />
+<img src="images/data-locality-cache-line.png" alt="Кэш-линия показывает, сколько байт загружается к кеш на каждый байт." />
 
 Если <span name="pallet">следующий байт</span> данных, который вам нужен,
 случайно окажется к этой линии, процессор прочитает его прямо из кэша, что *гораздо* быстрее,
@@ -246,7 +246,7 @@ Tony Albrecht's "[Pitfalls of Object-Oriented Programming][poop]&rdquo;.
 Другими словами, если ваш код использует `одно`, затем `другое`,
 потом `третье`, вам лучше расположить это в памяти как-то так:
 
-<img src="images/data-locality-things.png" alt="Thing, Another, and Also laid out directly next to each other in order in memory." />
+<img src="images/data-locality-things.png" alt="Одно, Другое и Третье лежат друг за другом в памяти." />
 
 Заметьте, это не *указатели* на `одно`, `другое` и `третье`. Это
 настоящие данные, расположенные в одну линию. Как только процессор
@@ -387,14 +387,14 @@ Tony Albrecht's "[Pitfalls of Object-Oriented Programming][poop]&rdquo;.
  4. И возвращаемся к шагу 1, чтобы повторить его для *каждого компонента каждого
     игрового объекта*.
 
-The scary part is that we have no idea how these objects are laid out in memory.
-We're completely at the mercy of the memory manager. As entities get allocated
-and freed over time, the heap is likely to become increasingly randomly
-organized.
+Страшная часть в том, что мы не имеем ни малейшего понятия, как эти объекты хранятся в памяти.
+Мы полностью полагаемся на милось менеджера памяти. Как под сущности выделяется
+и освобождается память, куча со временем становится все более случайно
+организована.
 
 <span name="lines"></span>
 
-<img src="images/data-locality-pointer-chasing.png" alt="A tangled mess of objects strewn randomly through memory with pointers wiring them all together." />
+<img src="images/data-locality-pointer-chasing.png" alt="Запутанная сеть объектов, случайно раскиданная по памяти и связанная через указатели." />
 
 <aside name="lines">
 
@@ -457,7 +457,7 @@ organized.
 Итак, мы выбросили блуждание по указателям. Вместо метания по памяти,
 мы перебираем три непрерывных массива с прямыми данными.
 
-<img src="images/data-locality-component-arrays.png" alt="An array for each of three different kinds of components. Each array neatly packs its components together." />
+<img src="images/data-locality-component-arrays.png" alt="Массивы для каждого из трех видов компонентов. Каждый массив содержит только свои компоненты." />
 
 Теперь плотный поток байтов загружается прямо в жадное горло процессора.
 По результатам тестов, это изменение ускоряет цикл в тридцать раз по сравнению
