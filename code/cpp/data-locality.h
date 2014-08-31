@@ -41,7 +41,7 @@ namespace DataLocality
   class AIComponent
   {
   public:
-    void update() { /* Work with and modify state... */ }
+    void update() { /* Работа с данными и изменение состояний... */ }
 
   private:
     // Goals, mood, etc. ...
@@ -50,19 +50,19 @@ namespace DataLocality
   class PhysicsComponent
   {
   public:
-    void update() { /* Work with and modify state... */ }
+    void update() { /* Работа с данными и изменение состояний... */ }
 
   private:
-    // Rigid body, velocity, mass, etc. ...
+    // Модель, скорость, масса и т.д. ...
   };
 
   class RenderComponent
   {
   public:
-    void render() { /* Work with and modify state... */ }
+    void render() { /* Работа с данными и изменение состояний... */ }
 
   private:
-    // Mesh, textures, shaders, etc. ...
+    // Графическая модель, текстуры, шейдеры и т.д. ...
   };
   //^components
 
@@ -96,25 +96,25 @@ namespace DataLocality
     //^game-loop
     while (!gameOver)
     {
-      // Process AI.
+      // AI
       for (int i = 0; i < numEntities; i++)
       {
         entities[i]->ai()->update();
       }
 
-      // Update physics.
+      // Физика
       for (int i = 0; i < numEntities; i++)
       {
         entities[i]->physics()->update();
       }
 
-      // Draw to screen.
+      // Отрисовка
       for (int i = 0; i < numEntities; i++)
       {
         entities[i]->render()->render();
       }
 
-      // Other game loop machinery for timing...
+      // Другие действия в игровом цикле...
     }
     //^game-loop
   }
@@ -138,25 +138,25 @@ namespace DataLocality
     //^game-loop-arrays
     while (!gameOver)
     {
-      // Process AI.
+      // AI
       for (int i = 0; i < numEntities; i++)
       {
         aiComponents[i].update();
       }
 
-      // Update physics.
+      // Физика
       for (int i = 0; i < numEntities; i++)
       {
         physicsComponents[i].update();
       }
 
-      // Draw to screen.
+      // Отрисовка
       for (int i = 0; i < numEntities; i++)
       {
         renderComponents[i].render();
       }
 
-      // Other game loop machinery for timing...
+      // Другие действия в игровом цикле...
     }
     //^game-loop-arrays
 
@@ -173,7 +173,7 @@ namespace DataLocality
     bool isActive() { return false; }
     //^omit particle-system
     void update() { /* Gravity, etc. ... */ }
-    // Position, velocity, etc. ...
+    // Положение, скорость и т.д. ...
   };
 
   class ParticleSystem
@@ -236,16 +236,16 @@ namespace DataLocality
   //^activate-particle
   void ParticleSystem::activateParticle(int index)
   {
-    // Shouldn't already be active!
+    // Не должно быть уже активным!
     assert(index >= numActive_);
 
-    // Swap it with the first inactive particle
-    // right after the active ones.
+    // Поменяем его с первой неактивной частицей
+    // сразу после активной
     Particle temp = particles_[numActive_];
     particles_[numActive_] = particles_[index];
     particles_[index] = temp;
 
-    // Now there's one more.
+    // Теперь их стало на одну больше
     numActive_++;
   }
   //^activate-particle
@@ -253,14 +253,14 @@ namespace DataLocality
   //^deactivate-particle
   void ParticleSystem::deactivateParticle(int index)
   {
-    // Shouldn't already be inactive!
+    // Не должно быть уже активным!
     assert(index < numActive_);
 
-    // There's one fewer.
+    // Теперь их стало на одну меньше
     numActive_--;
 
-    // Swap it with the last active particle
-    // right before the inactive ones.
+    // Поменяем его с первой активной частицей
+    // сразу после неактивной
     Particle temp = particles_[numActive_];
     particles_[numActive_] = particles_[index];
     particles_[index] = temp;
@@ -300,7 +300,7 @@ namespace DataLocality
       void update() { /* ... */ }
 
     private:
-      // Previous fields...
+      // Какие-то поля...
       LootType drop_;
       int minDrops_;
       int maxDrops_;
@@ -317,7 +317,7 @@ namespace DataLocality
     class AIComponent
     {
     public:
-      // Methods...
+      // Методы...
     private:
       Animation* animation_;
       double energy_;
