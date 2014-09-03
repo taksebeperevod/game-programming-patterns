@@ -1,64 +1,42 @@
 ^title Команда
 ^section Повторяем паттерны проектирования
 
-Команда - один из моих любимых паттернов. В большинстве больших программ,
-которые я пишу, будь то игры или что-то другое, употребляется этот паттерн.
-При использовании в нужном месте он аккуратно распутывает действительно кривой код. 
-Для такого раздутого паттерна у "Банды четырех" есть предсказуемо малопонятное описание:
+Команда - один из моих любимых паттернов. В большинстве больших программ, которые я пишу, будь то игры или что-то другое, употребляется этот паттерн. При использовании в нужном месте он аккуратно распутывает действительно кривой код. Для такого раздутого паттерна у "Банды четырех" есть предсказуемо малопонятное определение:
 
 > Инкапсулируйте запрос в качестве объекта, тем самым позволяя пользователям 
 параметризовать клиентов с различными запросами, поставьте в очередь или 
 запишите запросы в журнал и организуйте поддержку отменяемых операций.
 
-I think we can all agree that that's a terrible sentence. First of all, it
-mangles whatever metaphor it's trying to establish. Outside of the weird world
-of software where words can mean anything, a "client" is a *person* -- someone
-you do business with. Last I checked, people can't be "parameterized".
+Согласитесь, страшное предложение? Прежде всего, оно искажает все, что бы эта метафора ни пыталась заключить. Вне странного мира программного обеспечения, где слова могут означать всё, что угодно, "клиент" -- это человек, с которым ведут бизнес. Вплоть до настоящего времени людей нельзя было "параметризовать".
 
-Then, the rest of that sentence is just a list of stuff you could maybe possibly
-use the pattern for. Not very illuminating unless your use case happens to be in
-that list. *My* pithy tagline for the Command pattern is:
+Далее, оставшаяся часть предложения - это просто список того, к чему, вероятно, можно применить данный паттерн. Не очень понятно, если вашего сценария использования нет в этом списке. *Мой* сжатый слоган для паттерна "команда" будет звучать так:
 
-**A command is a *<span name="latin">reified</span> method call*.**
+**Команда - это *<span name="latin">материализованный</span> вызов метода*.**
 
 <aside name="latin">
 
-"Reify" comes from the Latin "res", for "thing", with the English suffix
-"&ndash;fy". So it basically means "thingify", which, honestly, would be a more
-fun word to use.
+"Материализовать" ("reify") происходит от латинского "res" — "вещь", с добавлением английского суффикса
+"&ndash;fy". Поэтому это слово буквально значит "овеществлять" ("thingify"), что, честно говоря, гораздо больше подошло бы в качестве определения.
 
 </aside>
 
-Of course, "pithy" often means "impenetrably terse", so this may not be much of
-an improvement. Let me unpack that a bit. "Reify", in case you've never heard
-it, means "make real". Another term for reifying is making something "first-class".
+Конечно, под словом "сжатый" часто подразумевается "предельно краткий", поэтому определение паттерна, вероятно, не очень улучшилось. Позвольте мне предложить немного более развернутое описание. "Материализовать" (если вы никогда не слышали этого слова) означает "сделать реальным". Другим термином для определения слова "материализовать" является сделать что-то объектом "первого класса".
 
 <aside name="reflection">
 
-*Reflection systems* in some languages let you work with the types in your
-program imperatively at runtime. You can get an object that represents the class
-of some other object, and you can play with that to see what the type can do. In
-other words, reflection is a *reified type system*.
+*Системы рефлексии* в некоторых языках программирования позволяют работать с типами в программе императивно во время выполнения. Можно получить объект, представляющий класс другого объекта, и поиграть с ним, чтобы увидеть, что умеет делать тип. Другими словами, рефлексия - это *материализованная система типов*.
 
 </aside>
 
-Both terms mean taking some <span name="reflection">*concept*</span> and turning
-it into a piece of *data* -- an object -- that you can stick in a variable, pass
-to a function, etc. So by saying the Command pattern is a "reified method call",
-what I mean is that it's a method call wrapped in an object.
+Оба выражения подразумевают взятие некоего <span name="reflection">*концепта*</span> и превращение его в кусок *данных* -- объект -- который можно поместить в переменную, передать на вход функции и т.д. Таким образом, называя паттерн "команду" "вызовом материализованного метода", я имею в виду, что это вызов метода, обернутый в объект.
 
-That sounds a lot like a "callback", "first-class function", "function pointer",
-"closure", or "partially applied function" depending on which language you're
-coming from, and indeed those are all in the same ballpark. The Gang of Four
-later says:
+Это во многом похоже на "функцию обратного вызова", "функцию первого класса", "указатель на функцию", "замыкание" или "частично применяемую функцию", в зависимости от того, на каком языке программирования вы пишете, и, на самом деле, все это растения из одного сада. Далее "Банда четырёх" пишет:
 
-> Commands are an object-oriented replacement for callbacks.
+> Команды - это объектно-ориентированная замена функций обратного вызова.
 
-That would be a better slugline for the pattern than the one they chose.
+Это определение стало бы намного более удачным для паттерна, нежели то, которое они выбрали.
 
-But all of this is abstract and nebulous. I like to start chapters with
-something concrete, and I blew that. To make up for it, from here on out it's
-all examples where commands are a brilliant fit.
+Но все это абстрактно и туманно. Я люблю начинать главы с конкретики, а в этот раз у меня это не получилось. Чтобы восполнить эту досадную оплошность, с текущего момента и дальше будут только сухие примеры, в которых команды найдут блестящее применение.
 
 ## Configuring Input
 
