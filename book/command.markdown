@@ -40,8 +40,7 @@
 
 ## Настройка ввода
 
-В любой игре где-то есть кусок кода, который считывает необработанные данные пользователя с устройств ввода --
-нажатия кнопок, клавиатурные события, щелчки мышью - что угодно. Он каждый раз берет входные данные и преобразует их в имеющее смысл действие в игре:
+В любой игре где-то есть кусок кода, который считывает необработанные данные пользователя с устройств ввода -- нажатия кнопок, клавиатурные события, щелчки мышью - что угодно. Он каждый раз берет входные данные и преобразует их в имеющее смысл действие в игре:
 
 <img src="images/command-buttons-one.png" alt="Контроллер с кнопкой A, привязанной к swapWeapon(), B, привязанной к lurch(), X, привязанной к jump(), и Y, привязанной к fireGun()." />
 
@@ -60,8 +59,7 @@
 Эта функция обычно вызывается раз в кадр паттерном <a class="pattern"
 href="game-loop.html">"Игровой цикл"</a>, и я уверен, вы сможете понять, что она делает. Она работает, если мы хотим жестко привязать кнопки ввода к игровым действиям, но многие игры разрешают пользователям *настроить* привязку кнопок.
 
-Чтобы поддерживать это, нужно поменять прямые вызовы `jump()` и `fireGun()`
-на что-то, что можно изменить. "Изменить" звучит во многом, как определить переменную, поэтому нужен *объект*, который можно использовать для отображения игрового действия.
+Чтобы поддерживать это, нужно поменять прямые вызовы `jump()` и `fireGun()` на что-то, что можно изменить. "Изменить" звучит во многом, как определить переменную, поэтому нужен *объект*, который можно использовать для отображения игрового действия.
 Встречайте: паттерн "Команда".
 
 Определим базовый класс, представляющий срабатываемую игровую команду:
@@ -104,98 +102,63 @@ href="game-loop.html">"Игровой цикл"</a>, и я уверен, вы с
 
 <img src="images/command-buttons-two.png" alt="Контроллер, где каждая кнопка привязана к соответствующей переменной 'button_', которая в свою очередь привязана к функции." />
 
-В этом суть паттерна "Команда". Если вы уже видите его преимущество, рассматривайте оставшуюся часть главы как бонус.
+В этом суть паттерна "Команда". Если вы уже видите его преимущество, рассматривайте оставшуюся часть главы, как бонус.
 
-## Directions for Actors
+## Директивы для акторов
 
-The command classes we just defined work for the previous example, but they're
-pretty limited. The problem is that they assume there are these top-level
-`jump()`, `fireGun()`, etc. functions that implicitly know how to find the
-player's avatar and make him dance like the puppet he is.
+Только что определенные классы команд работают в предыдущем примере, но весьма ограничены. Проблема в том, что они предполагают существование высокоуровневых функций 
+`jump()`, `fireGun()` и прочих, неявно знающих, как найти аватар игрока и заставить его танцевать, как марионетку, которой он и является.
 
-That assumed coupling limits the usefulness of those commands. The *only* thing
-the `JumpCommand` can make jump is the player. Let's loosen that restriction.
-Instead of calling functions that find the commanded object themselves, we'll
-*pass in* the object that we want to order around:
+Эта предполагаемая связь ограничивает пользу данных команд. *Единственный*, кто может подпрыгнуть по команде `JumpCommand` - это игрок. Давайте ослабим это ограничение.
+Вместо вызова функций, самостоятельно находящих объект команды, *передадим на вход* объект, которым хотим управлять:
 
 ^code actor-command
 
-Here, `GameActor` is our "game object" class that represents a character in the
-game world. We pass it in to `execute()` so that the derived command can invoke
-methods on an actor of our choice, like so:
+Здесь `GameActor` - класс "игрового объекта", который представляет персонажа в мире игры.  Передаем его в `execute()`, чтобы унаследованная команда могла вызвать методы, применяя их к выбранному актору, например:
 
 ^code jump-actor
 
-Now, we can use this one class to make any character in the game hop around.
-We're just missing a piece between the input handler and the command that takes
-the command and invokes it on the right object. First, we change `handleInput()`
-so that it *returns* commands:
+Теперь можно использовать этот единственный класс, чтобы заставить прыгать любого персонажа в игре. Нам просто не хватает кусочка между обработчиком пользовательского ввода и командой, который бы принимал команду и вызывал её на правильном объекте. Сначала изменим `handleInput()` так, чтобы он *возвращал* команды:
 
 ^code handle-input-return
 
-It can't execute the command immediately since it doesn't know what actor to
-pass in. Here's where we take advantage of the fact that the command is a
-reified call -- we can *delay* when the call is executed.
+Он не может выполнить команду немедленно, потому что не знает, какого актора передать на вход. Вот где мы воспользуемся тем фактом, что команда является материализованным вызовом -- можно *отложить* выполнение вызова.
 
-Then, we need some code that takes that command and runs it on the actor
-representing the player. Something like:
+Далее нужен какой-то код, который берет команду и запускает на акторе, представляющем игрока. Что-то вроде этого:
 
 ^code call-actor-command
 
-Assuming `actor` is a reference to the player's character, this correctly drives
-him based on the user's input, so we're back to the same behavior we had in the
-first example. But adding a layer of indirection between the command and the
-actor that performs it has given us a neat little ability: *we can let the
-player control any actor in the game now by changing the actor we execute
-the commands on.*
+Предположим, что `actor` - это ссылка на персонаж игрока, тогда этот код правильно передвигает его согласно управляющим клавишам пользователя, поэтому мы возвращаемся к тому же поведению из первого примера. Но добавление уровня абстракции между командой и выполняющим ее актором дает небольшое изящное преимущество: *теперь можно позволить игроку управлять любым актором в игре, просто сменив актора, на котором выполняются команды.*
 
-In practice, that's not a common feature, but there is a similar use case that
-*does* pop up frequently. So far, we've only considered the player-driven
-character, but what about all of the other actors in the world? Those are driven
-by the game's AI. We can use this same command pattern as the interface between
-the AI engine and the actors; the AI code simply emits `Command` objects.
+На практике это не распространенная возможность, но есть аналогичный сценарий использования, *действительно* часто всплывающий. До сих пор мы рассматривали только управляемого игроком персонажа, но что насчет других акторов в мире? Они управляются искусственным интеллектом игры. Можно использовать тот же самый паттерн "Команда" в качестве интерфейса между движком искусственного интеллекта и акторами: код искусственного интеллекта просто генерирует  объекты `Command`.
 
-The decoupling here between the AI that selects commands and the actor code
-that performs them gives us a lot of flexibility. We can use different AI
-modules for different actors. Or we can mix and match AI for different kinds of
-behavior. Want a more aggressive opponent? Just plug-in a more aggressive AI to
-generate commands for it. In fact, we can even bolt AI onto the *player's*
-character, which can be useful for things like demo mode where the game needs to
-run on auto-pilot.
+Здесь декомпозиция искусственного интеллекта, выбирающего команды, и кода актора, выполняющего их, предоставляет хороший уровень гибкости. Можно использовать различные модули искусственного интеллекта для различных акторов. Или можно смешать и сопоставить куски искусственного интеллекта для различных видов поведения. Хотите получить более агрессивного врага? Просто подключите более агрессивный искусственный интеллект, чтобы генерировать команды для него. Фактически можно даже прицепить искусственный интеллект к персонажу *игрока*, что может быть полезно для таких вещей, как демо-режим, когда игра должна работать на автопилоте.
 
-<span name="queue">By</span> making the commands that control an actor
-first-class objects, we've removed the tight coupling of a direct method call.
-Instead, think of it as a queue or stream of commands:
+<span name="queue">Путем</span> превращения команд, управляющих актором, в объекты первого класса, мы убрали жесткую зависимость от прямого вызова метода.
+Вместо этого получилось что-то вроде очереди или потока команд:
 
 <aside name="queue">
 
-For lots more on what queueing can do for you, see <a href="event-queue.html"
-class="pattern">Event Queue</a>.
+Намного больше о том, что может сделать постановка в очередь, вы найдете в главе <a href="event-queue.html"
+class="pattern">"Очередь событий"</a>.
 
 </aside>
 
 <span name="stream"></span>
 
-<img src="images/command-stream.png" alt="A pipe connecting AI to Actor." />
+<img src="images/command-stream.png" alt="Поток, соединяющий искусственный интеллект с актором." />
 
 <aside name="stream">
 
-Why did I feel the need to draw a picture of a "stream" for you? And why does it
-look like a tube?
+Почему я чувствую потребность нарисовать картинку "потока" для вас? И почему он выглядит, как труба?
 
 </aside>
 
-Some code (the input handler or AI) <span name="network">produces</span>
-commands and places them in the stream. Other code (the dispatcher or actor
-itself) consumes commands and invokes them. By sticking that queue in the
-middle, we've decoupled the producer on one end from the consumer on the other.
+Некоторый код (обработчик пользовательского ввода или искусственный интеллект) <span name="network">генерирует</span> команды и помещает их в поток. Другой код (диспетчер или сам актор) получает команды и вызывает их. Поместив очередь в центр, мы сделали декомпозицию генератора на одном конце от потребителя на другом.
 
 <aside name="network">
 
-If we take those commands and make them *serializable*, we can send the stream
-of them over the network. We can take the player's input, push it over the
-network to another machine, and then replay it. That's one important piece of
-making a networked multi-player game.
+Если взять эти команды и сделать их *сериализуемыми*, то можно послать поток из них по сети. Мы можем взять данные, введенные игроком, послать их по сети на другую машину и затем повторно воспроизвести их. Это важная часть создания сетевой многопользовательской игры.
 
 </aside>
 
