@@ -1,14 +1,14 @@
-^title Command
-^section Design Patterns Revisited
+^title Команда
+^section Повторяем паттерны проектирования
 
-Command is one of my favorite patterns. Most large programs I write, games or
-otherwise, end up using it somewhere. When I've used it in the right place, it's
-neatly untangled some really gnarly code. For such a swell pattern, the Gang of
-Four has a predictably abstruse description:
+Команда - один из моих любимых паттернов. В большинстве больших программ,
+которые я пишу, будь то игры или что-то другое, употребляется этот паттерн.
+При использовании в нужном месте он аккуратно распутывает действительно кривой код. 
+Для такого раздутого паттерна у "Банды четырех" есть предсказуемо малопонятное описание:
 
-> Encapsulate a request as an object, thereby letting users parameterize clients
-> with different requests, queue or log requests, and support undoable
-> operations.
+> Инкапсулируйте запрос в качестве объекта, тем самым позволяя пользователям 
+параметризовать клиентов с различными запросами, поставьте в очередь или 
+запишите запросы в журнал и организуйте поддержку отменяемых операций.
 
 I think we can all agree that that's a terrible sentence. First of all, it
 mangles whatever metaphor it's trying to establish. Outside of the weird world
