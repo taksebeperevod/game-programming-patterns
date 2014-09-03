@@ -9,7 +9,7 @@
 
 Согласитесь, страшное предложение? Прежде всего, оно искажает все, что бы эта метафора ни пыталась заключить. Вне странного мира программного обеспечения, где слова могут означать всё, что угодно, "клиент" -- это человек, с которым ведут бизнес. Вплоть до настоящего времени людей нельзя было "параметризовать".
 
-Далее, оставшаяся часть предложения - это просто список того, к чему, вероятно, можно применить данный паттерн. Не очень понятно, если вашего сценария использования нет в этом списке. *Мой* сжатый слоган для паттерна "команда" будет звучать так:
+Далее, оставшаяся часть предложения - это просто список того, к чему, вероятно, можно применить данный паттерн. Не очень понятно, если вашего сценария использования нет в этом списке. *Мой* сжатый слоган для паттерна "Команда" будет звучать так:
 
 **Команда - это *<span name="latin">материализованный</span> вызов метода*.**
 
@@ -28,7 +28,7 @@
 
 </aside>
 
-Оба выражения подразумевают взятие некоего <span name="reflection">*концепта*</span> и превращение его в кусок *данных* -- объект -- который можно поместить в переменную, передать на вход функции и т.д. Таким образом, называя паттерн "команду" "вызовом материализованного метода", я имею в виду, что это вызов метода, обернутый в объект.
+Оба выражения подразумевают взятие некоего <span name="reflection">*концепта*</span> и превращение его в кусок *данных* -- объект -- который можно поместить в переменную, передать на вход функции и т.д. Таким образом, называя паттерн "Команда" "вызовом материализованного метода", я имею в виду, что это вызов метода, обернутый в объект.
 
 Это во многом похоже на "функцию обратного вызова", "функцию первого класса", "указатель на функцию", "замыкание" или "частично применяемую функцию", в зависимости от того, на каком языке программирования вы пишете, и, на самом деле, все это растения из одного сада. Далее "Банда четырёх" пишет:
 
@@ -38,15 +38,14 @@
 
 Но все это абстрактно и туманно. Я люблю начинать главы с конкретики, а в этот раз у меня это не получилось. Чтобы восполнить эту досадную оплошность, с текущего момента и дальше будут только сухие примеры, в которых команды найдут блестящее применение.
 
-## Configuring Input
+## Настройка ввода
 
-Somewhere in every game is a chunk of code that reads in raw user input --
-button presses, keyboard events, mouse clicks, whatever. It takes each input and
-translates it to a meaningful action in the game:
+В любой игре где-то есть кусок кода, который считывает необработанные данные пользователя с устройств ввода --
+нажатия кнопок, клавиатурные события, щелчки мышью - что угодно. Он каждый раз берет входные данные и преобразует их в имеющее смысл действие в игре:
 
-<img src="images/command-buttons-one.png" alt="A controller, with A mapped to swapWeapon(), B mapped to lurch(), X mapped to jump(), and Y mapped to fireGun()." />
+<img src="images/command-buttons-one.png" alt="Контроллер с кнопкой A, привязанной к swapWeapon(), B, привязанной к lurch(), X, привязанной к jump(), и Y, привязанной к fireGun()." />
 
-A dead simple implementation looks like:
+Самая простая реализация выглядит примерно так:
 
 <span name="lurch"></span>
 
@@ -54,21 +53,18 @@ A dead simple implementation looks like:
 
 <aside name="lurch">
 
-Pro tip: Don't press B very often.
+Профессиональный совет: не нажимайте "B" слишком часто.
 
 </aside>
 
-This function typically gets called once per frame by the <a class="pattern"
-href="game-loop.html">Game Loop</a>, and I'm sure you can figure out what it
-does. This code works if we're willing to hard-wire user inputs to game actions,
-but many games let the user *configure* how their buttons are mapped.
+Эта функция обычно вызывается раз в кадр паттерном <a class="pattern"
+href="game-loop.html">"Игровой цикл"</a>, и я уверен, вы сможете понять, что она делает. Она работает, если мы хотим жестко привязать кнопки ввода к игровым действиям, но многие игры разрешают пользователям *настроить* привязку кнопок.
 
-To support that, we need to turn those direct calls to `jump()` and `fireGun()`
-into something that we can swap out. "Swapping out" sounds a lot like assigning
-a variable, so we need an *object* that we can use to represent a game action.
-Enter: the Command pattern.
+Чтобы поддерживать это, нужно поменять прямые вызовы `jump()` и `fireGun()`
+на что-то, что можно изменить. "Изменить" звучит во многом, как определить переменную, поэтому нужен *объект*, который можно использовать для отображения игрового действия.
+Встречайте: паттерн "Команда".
 
-We define a base class that represents a triggerable game command:
+Определим базовый класс, представляющий срабатываемую игровую команду:
 
 <span name="one-method"></span>
 
@@ -76,20 +72,19 @@ We define a base class that represents a triggerable game command:
 
 <aside name="one-method">
 
-When you have an interface with a single method that doesn't return anything,
-there's a good chance it's the Command pattern.
+Если есть интерфейс с единственным методом, который ничего не возвращает, очень вероятно, что это паттерн "Команда".
 
 </aside>
 
-Then we create subclasses for each of the different game actions:
+Затем создаем подклассы для каждого из различных игровых действий:
 
 ^code command-classes
 
-In our input handler, we store a pointer to a command for each button:
+В обработчике входных данных сохраним указатель на команду для каждой кнопки:
 
 ^code input-handler-class
 
-Now the input handling just delegates to those:
+Теперь обработка входных данных просто делегирует полномочия:
 
 <span name="null"></span>
 
@@ -97,24 +92,19 @@ Now the input handling just delegates to those:
 
 <aside name="null">
 
-Notice how we don't check for `null` here? This assumes each button will have
-*some* command wired up to it.
+Обратили внимание, что мы не проверяем указатель на равенство `null`? Здесь предполагается, что каждая кнопка будет иметь *некоторую* привязанную к ней команду.
 
-If we want to support buttons that do nothing without having to explicitly check
-for `null`, we can define a command class whose `execute()` method does nothing.
-Then, instead of setting a button handler to `null`, we point it to that object.
-This is a pattern called [Null
-Object](http://en.wikipedia.org/wiki/Null_Object_pattern).
+Если мы хотим поддерживать бездействующие кнопки без необходимости явно проверять на равенство `null`, можно определить класс команды, чей метод `execute()` ничего не делает.
+Затем вместо того, чтобы установить обработчик кнопки в `null`, делаем его указателем на тот объект.
+Это паттерн, называемый [Нулевой объект](http://ru.wikipedia.org/wiki/Null_object_%28%D0%A8%D0%B0%D0%B1%D0%BB%D0%BE%D0%BD_%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F%29).
 
 </aside>
 
-Where each input used to directly call a function, now there's a layer of
-indirection:
+Там, где при вводе использовался прямой вызов функции, теперь появился слой абстракции:
 
-<img src="images/command-buttons-two.png" alt="A controller, with each button mapped to a corresponding 'button_' variable which in turn is mapped to a function." />
+<img src="images/command-buttons-two.png" alt="Контроллер, где каждая кнопка привязана к соответствующей переменной 'button_', которая в свою очередь привязана к функции." />
 
-This is the Command pattern in a nutshell. If you can see the merit of it
-already, consider the rest of this chapter a bonus.
+В этом суть паттерна "Команда". Если вы уже видите его преимущество, рассматривайте оставшуюся часть главы как бонус.
 
 ## Directions for Actors
 
