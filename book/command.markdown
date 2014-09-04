@@ -27,7 +27,7 @@
 
 Оба выражения подразумевают взятие некоего <span name="reflection">*концепта*</span> и превращение его в кусок *данных* -- объект -- который можно поместить в переменную, передать на вход функции и т.д. Таким образом, называя паттерн "Команда" "вызовом материализованного метода", я имею в виду, что это вызов метода, обернутый в объект.
 
-Это во многом похоже на "функцию обратного вызова", "функцию первого класса", "указатель на функцию", "замыкание" или "частично применяемую функцию", в зависимости от того, на каком языке программирования вы пишете, и, на самом деле, все это растения из одного сада. Далее "Банда четырёх" пишет:
+Это во многом похоже на "функцию обратного вызова", "функцию первого класса", "указатель на функцию", "замыкание" или "частично применяемую функцию", в зависимости от того, на каком языке вы программируете, и, на самом деле, все это растения из одного сада. Далее "Банда четырёх" пишет:
 
 > Команды - это объектно-ориентированная замена функций обратного вызова.
 
@@ -55,7 +55,7 @@
 
 Эта функция обычно вызывается раз в кадр паттерном <a class="pattern" href="game-loop.html">"Игровой цикл"</a>, и я уверен, вы сможете понять, что она делает. Она работает, если мы хотим жестко привязать кнопки ввода к игровым действиям, но многие игры разрешают пользователям *настроить* привязку кнопок.
 
-Чтобы поддерживать это, нужно поменять прямые вызовы `jump()` и `fireGun()` на что-то, что можно изменить. "Изменить" звучит во многом, как определить переменную, поэтому нужен *объект*, который можно использовать для отображения игрового действия. Встречайте: паттерн "Команда".
+Чтобы поддерживать это, нужно поменять прямые вызовы `jump()` и `fireGun()` на что-то, что можно изменить. "Изменить" звучит во многом как определить переменную, поэтому нужен *объект*, который можно использовать для отображения игрового действия. Встречайте: паттерн "Команда".
 
 Определим базовый класс, представляющий срабатываемую игровую команду:
 
@@ -140,7 +140,7 @@
 
 <aside name="stream">
 
-Почему я чувствую потребность нарисовать картинку "потока" для вас? И почему он выглядит, как труба?
+Почему я чувствую потребность нарисовать для вас картинку "потока"? И почему он выглядит, как труба?
 
 </aside>
 
@@ -204,7 +204,7 @@
 
 Чтобы позволить игроку отменить шаг, придерживаем последнюю команду, которую он выполнил. Когда игрок ударяет по Control-Z, вызываем метод команды `undo()`. (Если игрок уже делал отмену, тогда метод превращается в "redo", и мы выполняем команду снова.)
 
-Поддержка нескольких уровней отмены действия не намного сложнее. Вместо того, чтобы запомнить последнюю команду, храним список команд и ссылку на текущую. Когда игрок выполняет команду, помещаем ее в конец списка и ставим туда указатель "текущей" команды.
+Поддержка нескольких уровней отмены действия не намного сложнее. Вместо того, чтобы запомнить последнюю команду, храним список команд и ссылку на текущую команду. Когда игрок выполняет команду, помещаем ее в конец списка и ставим туда указатель "текущей" команды.
 
 <img src="images/command-undo.png" alt="Стек команд от самой старой к самой новой. Стрелка 'текущая' указывает на команду, стрелка 'отмена' указывает на предыдущую команду, а 'повтор' указывает на следующую." />
 
@@ -220,49 +220,33 @@
 
 </aside>
 
-## Classy and Dysfunctional?
+## Классически и не функционально?
 
-Earlier, I said commands are similar to first-class functions or closures, but
-every example I showed here used class definitions. If you're familiar with
-functional programming, you're probably wondering where the functions are.
+Ранее я говорил, что команды подобны функциям первого класса или замыканиям, но в каждом приведенном примере использовались определения классов. Если вы знакомы с функциональным программированием, то, возможно, заинтересуетесь - а где же функции?
 
-I wrote the examples this way because C++ has pretty limited support for
-first-class functions. Function pointers are stateless, functors are weird and
-still
-require defining a class, and the lambdas in C++11 are tricky to work with
-because of manual memory management.
+Я писал примеры таким образом, поскольку C++ имеет весьма ограниченную поддержку функций первого класса. Указатели на функции не имеют состояний, функторы странные и все еще требуют определения класса, а с лямбда-выражениями в C++11 сложно работать из-за ручного управления памятью.
 
-That's *not* to say you shouldn't use functions for the Command pattern in other
-languages. If you have the luxury of a language with real closures, by all means,
-use them! In <span name="some">some</span> ways, the Command pattern is a way of
-emulating closures in languages that don't have them.
+Я говорю это *не* к тому, что нельзя использовать функции для паттерна "Команда" в других языках. Если есть такая роскошь, как язык с реальными замыканиями, непременно используйте их! В <span name="some">некоторых</span> отношениях, паттерн "Команда" - это способ эмуляции замыканий в не поддерживающих их языках программирования.
 
 <aside name="some">
 
-I say *some* ways here because building actual classes or structures for
-commands is still useful even in languages that have closures. If your command
-has multiple operations (like undoable commands), mapping that to a single
-function is awkward.
+Здесь я говорю "в *некоторых* отношениях", потому что построение реальных классов или структур для команд все еще полезно даже в языках, имеющих замыкания. Если команда имеет несколько операций (например, отменяемых команд), преобразование ее в единственную функцию неудобно.
 
-Defining an actual class with fields also helps readers easily tell what data
-the command contains. Closures are a wonderfully terse way of automatically
-wrapping up some state, but they can be so automatic that it's hard to see what
-state they're actually holding.
+Определение реального класса с полями также помогает читателям легко понять, какие данные содержит команда. Замыкания - это удивительно быстрый способ автоматического обертывания некоторого состояния, но они могут быть настолько автоматизированными, что сложно понять, какое состояние поддерживают на самом деле.
 
 </aside>
 
-For example, if we were building a game in JavaScript, we could create a move
-unit command just like this:
+Например, если бы мы писали игру на JavaScript, то могли создать команду перемещения единицы техники просто так:
 
     :::javascript
     function makeMoveUnitCommand(unit, x, y) {
-      // This function here is the command object:
+      // Эта функция здесь - объект команды:
       return function() {
         unit.moveTo(x, y);
       }
     }
 
-We could add support for undo as well using a pair of closures:
+Можно также добавить поддержку отмены, используя пару замыканий:
 
     :::javascript
     function makeMoveUnitCommand(unit, x, y) {
@@ -279,36 +263,18 @@ We could add support for undo as well using a pair of closures:
       };
     }
 
-If you're comfortable with a functional style, this way of doing things is
-natural. If you aren't, I hope this chapter helped you along the way a bit. For
-me, the usefulness of the Command pattern really shows how effective the
-functional paradigm is for many problems.
+Если вам удобно использовать функциональный стиль, то данный способ будет естественным. Если же нет, я надеюсь, что данная глава немного помогла вам на этом пути. По моему мнению, польза от паттерна "Команда" действительно показывает, насколько эффективна функциональная парадигма для многих задач.
 
-## See Also
+## См. также
 
- *  You may end up with a lot of different command classes. In order to make it
-    easier to implement those, it's often helpful to define a concrete base
-    class with a bunch of convenient high-level methods that the derived
-    commands can compose to define their behavior. That turns the command's main
-    `execute()` method into a <a href="subclass-sandbox.html"
-    class="pattern">Subclass Sandbox</a>.
+ *  В конечном итоге, можно прийти к большому количеству различных классов команд. Для того, чтобы облегчить их реализацию, часто полезно определить конкретный базовый класс с набором удобных высокоуровневых методов, которые производные команды могут компоновать, чтобы определить свое поведение. Это превращает главный метод команды `execute()` в паттерн <a href="subclass-sandbox.html" class="pattern">"Подкласс песочница"</a>.
 
- *  In our examples, we explicitly chose which actor would handle a command. In
-    some cases, especially where your object model is hierarchical, it may not
-    be so cut-and-dried. An object may respond to a command, or it may decide to
-    pawn it off on some subordinate object. If you do that, you've got yourself
-    a <a class="gof-pattern" href="
-    http://en.wikipedia.org/wiki/Chain-of-responsibility_pattern">Chain of Responsibility</a>.
+ *  В примерах был явный выбор актора для обработки команды. В некоторых случаях, особенно когда модель объекта иерархическая, это может быть не так очевидно. Объект может сам ответить на команду или решить делегировать ее какому-нибудь подчиненному объекту. Если сделаете так, то откроете для себя паттерн <a class="gof-pattern" href="https://ru.wikipedia.org/wiki/%D0%A6%D0%B5%D0%BF%D0%BE%D1%87%D0%BA%D0%B0_%D0%BE%D0%B1%D1%8F%D0%B7%D0%B0%D0%BD%D0%BD%D0%BE%D1%81%D1%82%D0%B5%D0%B9">"Цепочка обязанностей"</a>.
 
- *  Some commands are stateless chunks of pure behavior like the `JumpCommand`
-    in the first example. In cases like that, having <span
-    name="singleton">more</span> than one instance of that class wastes memory
-    since all instances are equivalent. The <a class="gof-pattern"
-    href="flyweight.html">Flyweight</a> pattern addresses that.
+ *  Некоторые команды - куски чистого поведения без состояний, например, `JumpCommand` в первом примере. В таких случаях поддержка <span name="singleton">более</span> одного экземпляра класса приведет к лишним потерям памяти, так как все экземпляры эквивалентны. С этим справляется паттерн <a class="gof-pattern" href="flyweight.html">"Приспособленец"</a>.
 
-    <aside name="singleton">
+<aside name="singleton">
 
-    You could make it a <a href="singleton.html" class="gof-
-    pattern">Singleton</a> too, but friends don't let friends create singletons.
+Также можно было бы сделать его паттерном <a href="singleton.html" class="gof-pattern">"Одиночкой"</a>, но друзья не позволяют друзьям создавать одиночек.
 
-    </aside>
+</aside>
