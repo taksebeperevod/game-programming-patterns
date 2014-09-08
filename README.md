@@ -1,5 +1,5 @@
 Основная группа обсуждения русского перевода в
-[Google Groups](groups.google.com/forum/#!topic/game-programming-patterns-translations/OxL0CL3QFTA).
+[Google Groups](http://groups.google.com/forum/#!topic/game-programming-patterns-translations/OxL0CL3QFTA).
 
 ## Этап 1. Перевод
 
