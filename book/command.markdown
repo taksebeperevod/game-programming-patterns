@@ -1,74 +1,75 @@
-^title Command
-^section Design Patterns Revisited
+^title Команда
+^section Повторяем паттерны проектирования
 
-Command is one of my favorite patterns. Most large programs I write, games or
-otherwise, end up using it somewhere. When I've used it in the right place, it's
-neatly untangled some really gnarly code. For such a swell pattern, the Gang of
-Four has a predictably abstruse description:
+Команда -- один из моих любимых паттернов. В большинстве больших программ, которые я пишу, будь то игры
+или что-то другое, употребляется этот паттерн. При использовании в нужном месте он
+аккуратно распутывает действительно кривой код. Для такого раздутого паттерна у
+"Банды четырех" есть предсказуемо малопонятное определение:
 
-> Encapsulate a request as an object, thereby letting users parameterize clients
-> with different requests, queue or log requests, and support undoable
-> operations.
+> Инкапсулируйте запрос в качестве объекта, тем самым позволяя пользователям
+> параметризовать клиентов с различными запросами, поставьте в очередь или
+> запишите запросы в журнал и организуйте поддержку отменяемых операций.
 
-I think we can all agree that that's a terrible sentence. First of all, it
-mangles whatever metaphor it's trying to establish. Outside of the weird world
-of software where words can mean anything, a "client" is a *person* -- someone
-you do business with. Last I checked, people can't be "parameterized".
+Согласитесь, страшное предложение? Прежде всего, оно
+искажает все, что бы эта метафора ни пыталась заключить. Вне странного мира
+программного обеспечения, где слова могут означать всё, что угодно, "клиент" --
+это человек, с которым ведут бизнес. Вплоть до настоящего времени людей нельзя было "параметризовать".
 
-Then, the rest of that sentence is just a list of stuff you could maybe possibly
-use the pattern for. Not very illuminating unless your use case happens to be in
-that list. *My* pithy tagline for the Command pattern is:
+Далее, оставшаяся часть предложения -- это просто список того, к чему, вероятно,
+можно применить данный паттерн. Не очень понятно, если вашего сценария использования нет
+в этом списке. *Мой* сжатый слоган для паттерна "Команда" будет звучать так:
 
-**A command is a *<span name="latin">reified</span> method call*.**
+**Команда -- это *<span name="latin">материализованный</span> вызов метода*.**
 
 <aside name="latin">
 
-"Reify" comes from the Latin "res", for "thing", with the English suffix
-"&ndash;fy". So it basically means "thingify", which, honestly, would be a more
-fun word to use.
+"Материализовать" ("reify") происходит от латинского "res" — "вещь", с добавлением английского
+суффикса "-fy". Поэтому это слово буквально значит "овеществлять" ("thingify"), что, честно говоря,
+гораздо больше подошло бы в качестве определения.
 
 </aside>
 
-Of course, "pithy" often means "impenetrably terse", so this may not be much of
-an improvement. Let me unpack that a bit. "Reify", in case you've never heard
-it, means "make real". Another term for reifying is making something "first-class".
+Конечно, под словом "сжатый" часто подразумевается "предельно краткий", поэтому определение паттерна,
+вероятно, не очень улучшилось. Позвольте мне предложить немного более развернутое описание. "Материализовать"
+(если вы никогда не слышали этого слова) означает "сделать реальным". Другим термином для определения
+слова "материализовать" является сделать что-то объектом "первого класса".
 
 <aside name="reflection">
 
-*Reflection systems* in some languages let you work with the types in your
-program imperatively at runtime. You can get an object that represents the class
-of some other object, and you can play with that to see what the type can do. In
-other words, reflection is a *reified type system*.
+*Системы рефлексии* в некоторых языках программирования позволяют работать с типами в программе
+императивно во время выполнения. Можно получить объект, представляющий класс другого объекта,
+и поиграть с ним, чтобы увидеть, что умеет делать тип.
+Другими словами, рефлексия -- это *материализованная система типов*.
 
 </aside>
 
-Both terms mean taking some <span name="reflection">*concept*</span> and turning
-it into a piece of *data* -- an object -- that you can stick in a variable, pass
-to a function, etc. So by saying the Command pattern is a "reified method call",
-what I mean is that it's a method call wrapped in an object.
+Оба выражения подразумевают взятие некоего <span name="reflection">*концепта*</span> и превращение
+его в кусок *данных* -- объект -- который можно поместить в переменную, передать
+на вход функции и т.д. Таким образом, называя паттерн "Команда" "вызовом материализованного метода",
+я имею в виду, что это вызов метода, обернутый в объект.
 
-That sounds a lot like a "callback", "first-class function", "function pointer",
-"closure", or "partially applied function" depending on which language you're
-coming from, and indeed those are all in the same ballpark. The Gang of Four
-later says:
+Это во многом похоже на "функцию обратного вызова", "функцию первого класса", "указатель на функцию",
+"замыкание" или "частично применяемую функцию", в зависимости от того, на каком языке вы
+программируете, и, на самом деле, все это растения из одного сада. Далее "Банда четырёх"
+пишет:
 
-> Commands are an object-oriented replacement for callbacks.
+> Команды -- это объектно-ориентированная замена функций обратного вызова.
 
-That would be a better slugline for the pattern than the one they chose.
+Это определение стало бы намного более удачным для паттерна, нежели то, которое они выбрали.
 
-But all of this is abstract and nebulous. I like to start chapters with
-something concrete, and I blew that. To make up for it, from here on out it's
-all examples where commands are a brilliant fit.
+Но все это абстрактно и туманно. Я люблю начинать главы с конкретики,
+а в этот раз у меня это не получилось. Чтобы восполнить эту досадную оплошность, с текущего момента
+и дальше будут только сухие примеры, в которых команды найдут блестящее применение.
 
-## Configuring Input
+## Настройка ввода
 
-Somewhere in every game is a chunk of code that reads in raw user input --
-button presses, keyboard events, mouse clicks, whatever. It takes each input and
-translates it to a meaningful action in the game:
+В любой игре где-то есть кусок кода, который считывает необработанные данные пользователя с устройств ввода --
+нажатия кнопок, клавиатурные события, щелчки мышью -- что угодно. Он каждый раз берет входные данные
+и преобразует их в имеющее смысл действие в игре:
 
-<img src="images/command-buttons-one.png" alt="A controller, with A mapped to swapWeapon(), B mapped to lurch(), X mapped to jump(), and Y mapped to fireGun()." />
+<img src="images/command-buttons-one.png" alt="Контроллер с кнопкой A, привязанной к swapWeapon(), B, привязанной к lurch(), X, привязанной к jump(), и Y, привязанной к fireGun()." />
 
-A dead simple implementation looks like:
+Самая простая реализация выглядит примерно так:
 
 <span name="lurch"></span>
 
@@ -76,21 +77,21 @@ A dead simple implementation looks like:
 
 <aside name="lurch">
 
-Pro tip: Don't press B very often.
+Профессиональный совет: не нажимайте "B" слишком часто.
 
 </aside>
 
-This function typically gets called once per frame by the <a class="pattern"
-href="game-loop.html">Game Loop</a>, and I'm sure you can figure out what it
-does. This code works if we're willing to hard-wire user inputs to game actions,
-but many games let the user *configure* how their buttons are mapped.
+Эта функция обычно вызывается раз в кадр паттерном
+<a class="pattern" href="game-loop.html">"Игровой цикл"</a>, и я уверен, вы сможете понять, что
+она делает. Она работает, если мы хотим жестко привязать кнопки ввода к игровым действиям,
+но многие игры разрешают пользователям *настроить* привязку кнопок.
 
-To support that, we need to turn those direct calls to `jump()` and `fireGun()`
-into something that we can swap out. "Swapping out" sounds a lot like assigning
-a variable, so we need an *object* that we can use to represent a game action.
-Enter: the Command pattern.
+Чтобы поддерживать это, нужно поменять прямые вызовы `jump()` и `fireGun()`
+на что-то, что можно изменить. "Изменить" звучит во многом как определить
+переменную, поэтому нужен *объект*, который можно использовать для отображения игрового действия.
+Встречайте: паттерн "Команда".
 
-We define a base class that represents a triggerable game command:
+Определим базовый класс, представляющий срабатываемую игровую команду:
 
 <span name="one-method"></span>
 
@@ -98,20 +99,20 @@ We define a base class that represents a triggerable game command:
 
 <aside name="one-method">
 
-When you have an interface with a single method that doesn't return anything,
-there's a good chance it's the Command pattern.
+Если есть интерфейс с единственным методом, который ничего не возвращает,
+очень вероятно, что это паттерн "Команда".
 
 </aside>
 
-Then we create subclasses for each of the different game actions:
+Затем создаем подклассы для каждого из различных игровых действий:
 
 ^code command-classes
 
-In our input handler, we store a pointer to a command for each button:
+В обработчике входных данных сохраним указатель на команду для каждой кнопки:
 
 ^code input-handler-class
 
-Now the input handling just delegates to those:
+Теперь обработка входных данных просто делегирует полномочия:
 
 <span name="null"></span>
 
@@ -119,285 +120,285 @@ Now the input handling just delegates to those:
 
 <aside name="null">
 
-Notice how we don't check for `null` here? This assumes each button will have
-*some* command wired up to it.
+Обратили внимание, что здесь мы не проверяем на равенство `null`? Следовательно, предполагается,
+что каждая кнопка будет иметь *некоторую* привязанную к ней команду.
 
-If we want to support buttons that do nothing without having to explicitly check
-for `null`, we can define a command class whose `execute()` method does nothing.
-Then, instead of setting a button handler to `null`, we point it to that object.
-This is a pattern called [Null
-Object](http://en.wikipedia.org/wiki/Null_Object_pattern).
+Если мы хотим поддерживать бездействующие кнопки без необходимости явно проверять
+на равенство `null`, можно определить класс команды, чей метод `execute()` ничего не делает.
+Затем вместо того, чтобы установить обработчик кнопки в `null`, делаем его указателем на тот объект.
+Это паттерн, называемый
+["Нулевым объектом"](http://ru.wikipedia.org/wiki/Null_object_%28%D0%A8%D0%B0%D0%B1%D0%BB%D0%BE%D0%BD_%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F%29).
 
 </aside>
 
-Where each input used to directly call a function, now there's a layer of
-indirection:
+Там, где при вводе использовался прямой вызов функции, теперь появился слой
+абстракции:
 
-<img src="images/command-buttons-two.png" alt="A controller, with each button mapped to a corresponding 'button_' variable which in turn is mapped to a function." />
+<img src="images/command-buttons-two.png" alt="Контроллер, где каждая кнопка привязана к соответствующей переменной 'button_', которая в свою очередь привязана к функции." />
 
-This is the Command pattern in a nutshell. If you can see the merit of it
-already, consider the rest of this chapter a bonus.
+В этом суть паттерна "Команда". Если вы уже видите его
+преимущество, рассматривайте оставшуюся часть главы, как бонус.
 
-## Directions for Actors
+## Директивы для акторов
 
-The command classes we just defined work for the previous example, but they're
-pretty limited. The problem is that they assume there are these top-level
-`jump()`, `fireGun()`, etc. functions that implicitly know how to find the
-player's avatar and make him dance like the puppet he is.
+Только что определенные классы команд приемлемы в предыдущем примере, но
+весьма ограничены. Проблема в том, что они предполагают существование высокоуровневых
+функций `jump()`, `fireGun()` и прочих, неявно знающих, как найти
+аватар игрока и заставить его танцевать, как марионетку, которой он и является.
 
-That assumed coupling limits the usefulness of those commands. The *only* thing
-the `JumpCommand` can make jump is the player. Let's loosen that restriction.
-Instead of calling functions that find the commanded object themselves, we'll
-*pass in* the object that we want to order around:
+Эта предполагаемая связь ограничивает пользу данных команд. *Единственный*, кто
+может подпрыгнуть по команде `JumpCommand` -- это игрок. Давайте ослабим это ограничение.
+Вместо вызова функций, самостоятельно находящих объект команды,
+*передадим на вход* объект, которым хотим управлять:
 
 ^code actor-command
 
-Here, `GameActor` is our "game object" class that represents a character in the
-game world. We pass it in to `execute()` so that the derived command can invoke
-methods on an actor of our choice, like so:
+Здесь `GameActor` -- класс "игрового объекта", представляющий персонажа в
+игровом мире. Передаем его в `execute()`, чтобы унаследованная команда могла вызвать
+методы, применяя их к выбранному актору, например:
 
 ^code jump-actor
 
-Now, we can use this one class to make any character in the game hop around.
-We're just missing a piece between the input handler and the command that takes
-the command and invokes it on the right object. First, we change `handleInput()`
-so that it *returns* commands:
+Теперь можно использовать этот единственный класс, чтобы заставить прыгать любого персонажа в игре.
+Нам просто не хватает кусочка между обработчиком пользовательского ввода и командой, который бы принимал
+команду и вызывал её на правильном объекте. Сначала изменим `handleInput()` так,
+чтобы он *возвращал* команды:
 
 ^code handle-input-return
 
-It can't execute the command immediately since it doesn't know what actor to
-pass in. Here's where we take advantage of the fact that the command is a
-reified call -- we can *delay* when the call is executed.
+Он не может выполнить команду немедленно, потому что не знает, какого актора
+передать на вход. Вот где мы воспользуемся тем фактом, что команда
+является материализованным вызовом -- можно *отложить* выполнение вызова.
 
-Then, we need some code that takes that command and runs it on the actor
-representing the player. Something like:
+Далее нужен какой-то код, который берет команду и запускает на акторе,
+представляющем игрока. Что-то вроде этого:
 
 ^code call-actor-command
 
-Assuming `actor` is a reference to the player's character, this correctly drives
-him based on the user's input, so we're back to the same behavior we had in the
-first example. But adding a layer of indirection between the command and the
-actor that performs it has given us a neat little ability: *we can let the
-player control any actor in the game now by changing the actor we execute
-the commands on.*
+Предположим, что `actor` -- это ссылка на персонаж игрока, тогда этот код правильно
+передвигает его согласно управляющим клавишам пользователя, поэтому мы возвращаемся к тому же поведению
+из первого примера. Но добавление уровня абстракции между командой и выполняющим ее
+актором дает небольшое изящное преимущество: *теперь можно позволить
+игроку управлять любым актором в игре, просто сменив актора, на котором выполняются
+команды.*
 
-In practice, that's not a common feature, but there is a similar use case that
-*does* pop up frequently. So far, we've only considered the player-driven
-character, but what about all of the other actors in the world? Those are driven
-by the game's AI. We can use this same command pattern as the interface between
-the AI engine and the actors; the AI code simply emits `Command` objects.
+На практике это не распространенная возможность, но есть аналогичный сценарий использования,
+*действительно* часто всплывающий. До сих пор мы рассматривали только управляемого игроком
+персонажа, но что насчет других акторов в мире? Они управляются искусственным
+интеллектом игры. Можно использовать тот же самый паттерн "Команда" в качестве интерфейса между
+движком искусственного интеллекта и акторами: код искусственного интеллекта просто генерирует объекты `Command`.
 
-The decoupling here between the AI that selects commands and the actor code
-that performs them gives us a lot of flexibility. We can use different AI
-modules for different actors. Or we can mix and match AI for different kinds of
-behavior. Want a more aggressive opponent? Just plug-in a more aggressive AI to
-generate commands for it. In fact, we can even bolt AI onto the *player's*
-character, which can be useful for things like demo mode where the game needs to
-run on auto-pilot.
+Здесь декомпозиция искусственного интеллекта, выбирающего команды, и кода актора,
+выполняющего их, предоставляет хороший уровень гибкости. Можно использовать различные
+модули искусственного интеллекта для различных акторов. Или можно смешать и сопоставить куски
+искусственного интеллекта для различных видов поведения. Хотите получить более агрессивного врага?
+Просто подключите более агрессивный искусственный интеллект, чтобы генерировать команды для него.
+Фактически можно даже прицепить искусственный интеллект к персонажу *игрока*, что может быть полезно
+для таких вещей, как демо-режим, когда игра должна работать на автопилоте.
 
-<span name="queue">By</span> making the commands that control an actor
-first-class objects, we've removed the tight coupling of a direct method call.
-Instead, think of it as a queue or stream of commands:
+<span name="queue">Путем</span> превращения команд, управляющих актором, в
+объекты первого класса, мы убрали жесткую зависимость от прямого вызова метода.
+Вместо этого получилось что-то вроде очереди или потока команд:
 
 <aside name="queue">
 
-For lots more on what queueing can do for you, see <a href="event-queue.html"
-class="pattern">Event Queue</a>.
+Намного больше о том, что может сделать постановка в очередь, вы найдете в главе
+<a href="event-queue.html" class="pattern">"Очередь событий"</a>.
 
 </aside>
 
 <span name="stream"></span>
 
-<img src="images/command-stream.png" alt="A pipe connecting AI to Actor." />
+<img src="images/command-stream.png" alt="Поток, соединяющий искусственный интеллект с актором." />
 
 <aside name="stream">
 
-Why did I feel the need to draw a picture of a "stream" for you? And why does it
-look like a tube?
+Почему я чувствую потребность нарисовать для вас картинку "потока"? И почему он
+выглядит, как труба?
 
 </aside>
 
-Some code (the input handler or AI) <span name="network">produces</span>
-commands and places them in the stream. Other code (the dispatcher or actor
-itself) consumes commands and invokes them. By sticking that queue in the
-middle, we've decoupled the producer on one end from the consumer on the other.
+Некоторый код (обработчик пользовательского ввода или искусственный интеллект) <span name="network">генерирует</span>
+команды и помещает их в поток. Другой код (диспетчер или сам актор)
+получает команды и вызывает их. Поместив очередь в
+центр, мы сделали декомпозицию генератора на одном конце от потребителя на другом.
 
 <aside name="network">
 
-If we take those commands and make them *serializable*, we can send the stream
-of them over the network. We can take the player's input, push it over the
-network to another machine, and then replay it. That's one important piece of
-making a networked multi-player game.
+Если взять эти команды и сделать их *сериализуемыми*, то можно послать поток
+из них по сети. Мы можем взять данные, введенные игроком, послать их
+по сети на другую машину и затем повторно воспроизвести их. Это важная часть
+создания сетевой многопользовательской игры.
 
 </aside>
 
-## Undo and Redo
+## Отмена и повтор
 
-The last example is the most well-known use of this pattern. If a command object
-can *do* things, it's a small step for it to be able to *undo* them. Undo is
-used in some strategy games where you can roll back moves that you didn't like.
-It's *de rigueur* in tools that people use to *create* games. The <span
-name="hate">surest way</span> to make your game designers hate you is giving
-them a level editor that can't undo their fat-fingered mistakes.
+Последний пример -- наиболее известное применение данного паттерна. Если объект команды
+может что-то *делать*, малый шаг отделяет его от возможности *отмены* своих действий. Отмена
+используется в некоторых стратегических играх, где можно откатить шаги, которые не понравились.
+Это *дань этикету* в инструментах, используемых для *создания* игр.
+<span name="hate">Самый надежный способ</span> заставить гейм-дизайнеров ненавидеть вас --
+дать им редактор уровней, который не может отменять ошибки, допущенные с помощью их толстых пальцев.
 
 <aside name="hate">
 
-I may be speaking from experience here.
+Возможно, сейчас я рассуждаю, исходя из своего опыта.
 
 </aside>
 
-Without the Command pattern, implementing undo is surprisingly hard. With it,
-it's a piece of cake. Let's say we're making a single-player, turn-based game and
-we want to let users undo moves so they can focus more on strategy and less on
-guesswork.
+Без паттерна "Команда" реализация отмены действия на удивление сложна. С ним --
+это пара пустяков. Давайте предположим, что делаем однопользовательскую пошаговую игру
+и хотим разрешить пользователям отменять шаги, чтобы они могли больше сосредоточиться на стратегии
+и меньше на угадывании.
 
-We're conveniently already using commands to abstract input handling, so every
-move the player makes is already encapsulated in them. For example, moving a
-unit may look like:
+Мы уже используем удобные команды для абстрагирования обработки входных данных, поэтому каждый
+шаг, производимый игроком, инкапсулирован в них. Например, перемещение
+единицы техники может выглядеть так:
 
 ^code move-unit
 
-Note this is a little different from our previous commands. In the last example,
-we wanted to *abstract* the command from the actor that it modified. In this
-case, we specifically want to *bind* it to the unit being moved. An instance of
-this command isn't a general "move something" operation that you could use in a
-bunch of contexts; it's a specific concrete move in the game's sequence of
-turns.
+Обратите внимание, что есть маленькое отличие от предыдущих команд. В последнем примере
+мы хотели *абстрагировать* команду от модифицированного ею актора. В данном случае
+мы специально хотим *привязать* ее к перемещаемой единице техники. Экземпляр
+данной команды не является обобщённой операцией вида "двигать что-то", которую можно использовать
+во многих ситуациях; это определенное конкретное перемещение в игровой последовательности
+шагов.
 
-This highlights a variation in how the Command pattern gets implemented. In some
-cases, like our first couple of examples, a command is a reusable object that
-represents a *thing that can be done*. Our earlier input handler held on to a
-single command object and called its `execute()` method anytime the right button
-was pressed.
+В этом разница в реализации паттерна "Команда". В некоторых случаях,
+например, в первой паре примеров, команда -- это объект многократного использования,
+представляющий *что-то, что можно сделать*. Предыдущий обработчик входных данных закреплялся
+за единственным объектом команды и вызывал его метод `execute()` каждый раз, когда верная кнопка
+была нажата.
 
-Here, the commands are more specific. They represent a thing that can be done at
-a specific point in time. This means that the input handling code will be <span
-name="free">*creating*</span> an instance of this every time the player chooses
-a move. Something like:
+Здесь команды более специфичны. Они представляют что-то, что может быть сделано
+в определённый момент времени. Это означает, что код обработки входных данных будет
+<span name="free">*создавать*</span> экземпляр каждый раз, когда игрок выберет
+шаг. Что-то вроде этого:
 
 ^code get-move
 
 <aside name="free">
 
-Of course, in a non-garbage-collected language like C++, this means the code
-executing commands will also be responsible for freeing their memory.
+Конечно, в языках без сборки мусора, например C++, это означает, что код,
+выполняющий команды, также будет отвечать за освобождение памяти из-под них.
 
 </aside>
 
-The fact that commands are one-use-only will come to our advantage in a second.
-To make commands undoable, we define another operation each command class needs
-to implement:
+Факт того, что команды используются только один раз, за секунду станет нашим преимуществом.
+Для того чтобы сделать команды отменяемыми, определим другую операцию, которую потребуется
+реализовать каждому классу команды:
 
 ^code undo-command
 
-An `undo()` method reverses the game state changed by the corresponding
-`execute()` method. Here's our previous move command with undo support:
+Метод `undo()` возвращает игровое состояние, измененное соответствующим
+методом `execute()`. Вот предыдущая команда перемещения с поддержкой отмены:
 
 ^code undo-move-unit
 
-Note that we added some <span name="memento">more state</span> to the class.
-When a unit moves, it forgets where it used to be. If we want to be able to undo
-that move, we have to remember the unit's previous position ourselves, which is
-what `xBefore_` and `yBefore_` do.
+Обратите внимание, что мы добавили к классу <span name="memento">больше состояний</span>.
+Когда единица техники перемещается, она забывает, где была ранее. Если мы хотим иметь возможность отменять
+перемещение, то должны сами запоминать предыдущую позицию единицы,
+что и делают `xBefore_` и `yBefore_`.
 
 <aside name="memento">
 
-This seems like a place for the <a
-href="http://en.wikipedia.org/wiki/Memento_pattern"
-class="gof-pattern">Memento</a> pattern, but I haven't found it to work well.
-Since commands tend to modify only a small part of an object's state,
-snapshotting the rest of its data is a waste of memory. It's cheaper to
-manually store only the bits you change.
+Кажется, тут место для паттерна
+<a href="http://ru.wikipedia.org/wiki/%D0%A5%D1%80%D0%B0%D0%BD%D0%B8%D1%82%D0%B5%D0%BB%D1%8C_%28%D1%88%D0%B0%D0%B1%D0%BB%D0%BE%D0%BD_%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F%29" class="gof-pattern">"Хранитель"</a>,
+но я не видел, чтобы он где-то хорошо справлялся с работой.
+Так как команды, как правило, изменяют небольшую часть состояния объекта,
+фиксация остальных его данных -- потеря памяти. Выгоднее вручную
+хранить только изменяемые биты.
 
-<a href="http://en.wikipedia.org/wiki/Persistent_data_structure">*Persistent
-data structures*</a> are another option. With these, every modification to an
-object returns a new one, leaving the original unchanged. Through clever
-implementation, these new objects share data with the previous ones, so it's
-much cheaper than cloning the entire object.
+<a href="http://en.wikipedia.org/wiki/Persistent_data_structure">*Персистентные структуры данных*</a>
+являются альтернативой. С ними каждое изменение
+объекта возвращает новый объект, оставляя оригинал неизменным. Посредством
+умной реализации эти новые объекты используют данные совместно с предыдущими, поэтому
+это гораздо проще, чем клонирование целого объекта.
 
-Using a persistent data structure, each command stores a reference to the
-object before the command was performed, and undo just means switching back to
-the old object.
+Используя персистентную структуру данных, каждая команда хранит ссылку на
+объект перед выполнением, а отмена просто является переключением обратно
+к старому объекту.
 
 </aside>
 
-To let the player undo a move, we keep around the last command they executed.
-When they bang on Control-Z, we call that command's `undo()` method. (If they've
-already undone, then it becomes "redo" and we execute the command again.)
+Чтобы позволить игроку отменить шаг, придерживаем последнюю команду, которую он выполнил.
+Когда игрок ударяет по Control-Z, вызываем метод команды `undo()`. (Если игрок
+уже делал отмену, тогда метод превращается в "redo", и мы выполняем команду снова.)
 
-Supporting multiple levels of undo isn't much harder. Instead of remembering the
-last command, we keep a list of commands and a reference to the "current" one.
-When the player executes a command, we append it to the list and point "current"
-at it.
+Поддержка нескольких уровней отмены действия не намного сложнее. Вместо того, чтобы запомнить
+последнюю команду, храним список команд и ссылку на текущую команду.
+Когда игрок выполняет команду, помещаем ее в конец списка и ставим туда указатель "текущей"
+команды.
 
-<img src="images/command-undo.png" alt="A stack of commands from older to newer. A 'current' arrow points to one command, an 'undo' arrow points to the previous one, and 'redo' points to the next." />
+<img src="images/command-undo.png" alt="Стек команд от самой старой к самой новой. Стрелка 'текущая' указывает на команду, стрелка 'отмена' указывает на предыдущую команду, а 'повтор' указывает на следующую." />
 
-When the player chooses "Undo", we undo the current command and move the current
-pointer back. When they choose <span name="replay">"Redo"</span>, we advance the
-pointer
-and then execute that command. If they choose a new command after undoing some,
-everything in the list after the current command is discarded.
+Когда игрок выбирает "Отмену", отменяем текущую команду и перемещаем текущий
+указатель назад. Когда игрок выбирает <span name="replay">"Повтор"</span>,
+перемещаем указатель вперед,
+а затем выполняем эту команду. Если игрок выбирает новую команду после отмены какой-то,
+все в списке после текущей команды отбрасывается.
 
-The first time I implemented this in a level editor, I felt like a wizard. I was
-astonished at how straightforward it was and how well it worked. It takes
-discipline to make sure every data modification goes through a command, but once
-you do that, the rest is easy.
+В первый раз после реализации этого в редакторе уровней я почувствовал себя волшебником. Я был
+поражен простотой реализации и тем, насколько хорошо все работало. Требуется
+дисциплина, чтобы увериться в том, что каждое изменение данных проходит сквозь команду,
+но как только вы это сделаете, остальное будет просто.
 
 <aside name="replay">
 
-Redo may not be common in games, but re-*play* is. A naïve implementation would
-record the entire game state at each frame so it can be replayed, but that would
-use too much memory.
+Повтор, возможно, не так распространен в играх, но повторное *воспроизведение* -- да. В ходе простейшей реализации
+мы бы записали состояние всей игры в каждом кадре, чтобы ее можно было повторно воспроизвести, но это бы
+потребовало слишком много памяти.
 
-Instead, many games record the set of commands every entity performed each
-frame. To replay the game, the engine just runs the normal game simulation,
-executing the pre-recorded commands.
+Вместо этого, многие игры записывают набор команд, выполняемых каждой сущностью каждый
+кадр. Для повторного воспроизведения движок просто запускает симуляцию обычной игры,
+выполняя предварительно записанные команды.
 
 </aside>
 
-## Classy and Dysfunctional?
+## Классически и не функционально?
 
-Earlier, I said commands are similar to first-class functions or closures, but
-every example I showed here used class definitions. If you're familiar with
-functional programming, you're probably wondering where the functions are.
+Ранее я говорил, что команды подобны функциям первого класса или замыканиям, но
+в каждом приведенном примере использовались определения классов. Если вы знакомы
+с функциональным программированием, то, возможно, заинтересуетесь -- а где же функции?
 
-I wrote the examples this way because C++ has pretty limited support for
-first-class functions. Function pointers are stateless, functors are weird and
-still
-require defining a class, and the lambdas in C++11 are tricky to work with
-because of manual memory management.
+Я писал примеры таким образом, поскольку C++ имеет весьма ограниченную поддержку
+функций первого класса. Указатели на функции не имеют состояний, функторы странные и
+все еще
+требуют определения класса, а с лямбда-выражениями в C++11 сложно работать
+из-за ручного управления памятью.
 
-That's *not* to say you shouldn't use functions for the Command pattern in other
-languages. If you have the luxury of a language with real closures, by all means,
-use them! In <span name="some">some</span> ways, the Command pattern is a way of
-emulating closures in languages that don't have them.
+Я говорю это *не* к тому, что нельзя использовать функции для паттерна "Команда" в других
+языках. Если есть такая роскошь, как язык с реальными замыканиями, непременно
+используйте их! В <span name="some">некоторых</span> отношениях, паттерн "Команда" --
+это способ эмуляции замыканий в не поддерживающих их языках программирования.
 
 <aside name="some">
 
-I say *some* ways here because building actual classes or structures for
-commands is still useful even in languages that have closures. If your command
-has multiple operations (like undoable commands), mapping that to a single
-function is awkward.
+Здесь я говорю "в *некоторых* отношениях", потому что построение реальных классов или структур
+для команд все еще полезно даже в языках, имеющих замыкания. Если команда
+имеет несколько операций (например, отменяемых команд), преобразование ее
+в единственную функцию неудобно.
 
-Defining an actual class with fields also helps readers easily tell what data
-the command contains. Closures are a wonderfully terse way of automatically
-wrapping up some state, but they can be so automatic that it's hard to see what
-state they're actually holding.
+Определение реального класса с полями также помогает читателям легко понять, какие данные
+содержит команда. Замыкания -- это удивительно быстрый способ автоматического
+обертывания некоторого состояния, но они могут быть настолько автоматизированными, что
+сложно понять, какое состояние поддерживают на самом деле.
 
 </aside>
 
-For example, if we were building a game in JavaScript, we could create a move
-unit command just like this:
+Например, если бы мы писали игру на JavaScript, то могли создать команду перемещения
+единицы техники просто так:
 
     :::javascript
     function makeMoveUnitCommand(unit, x, y) {
-      // This function here is the command object:
+      // Эта функция здесь -- объект команды:
       return function() {
         unit.moveTo(x, y);
       }
     }
 
-We could add support for undo as well using a pair of closures:
+Можно также добавить поддержку отмены, используя пару замыканий:
 
     :::javascript
     function makeMoveUnitCommand(unit, x, y) {
@@ -414,36 +415,35 @@ We could add support for undo as well using a pair of closures:
       };
     }
 
-If you're comfortable with a functional style, this way of doing things is
-natural. If you aren't, I hope this chapter helped you along the way a bit. For
-me, the usefulness of the Command pattern really shows how effective the
-functional paradigm is for many problems.
+Если вам удобно использовать функциональный стиль, то данный способ будет
+естественным. Если же нет, я надеюсь, что данная глава немного помогла вам на этом пути.
+По моему мнению, польза от паттерна "Команда" действительно показывает, насколько эффективна
+функциональная парадигма для многих задач.
 
-## See Also
+## См. также
 
- *  You may end up with a lot of different command classes. In order to make it
-    easier to implement those, it's often helpful to define a concrete base
-    class with a bunch of convenient high-level methods that the derived
-    commands can compose to define their behavior. That turns the command's main
-    `execute()` method into a <a href="subclass-sandbox.html"
-    class="pattern">Subclass Sandbox</a>.
+ *  В конечном итоге, можно прийти к большому количеству различных классов команд. Для того,
+    чтобы облегчить их реализацию, часто полезно определить конкретный базовый класс
+    с набором удобных высокоуровневых методов, которые производные команды могут компоновать,
+    чтобы определить свое поведение. Это превращает главный метод команды
+    `execute()` в паттерн
+    <a href="subclass-sandbox.html" class="pattern">"Подкласс песочница"</a>.
 
- *  In our examples, we explicitly chose which actor would handle a command. In
-    some cases, especially where your object model is hierarchical, it may not
-    be so cut-and-dried. An object may respond to a command, or it may decide to
-    pawn it off on some subordinate object. If you do that, you've got yourself
-    a <a class="gof-pattern" href="
-    http://en.wikipedia.org/wiki/Chain-of-responsibility_pattern">Chain of Responsibility</a>.
+ *  В примерах был явный выбор актора для обработки команды.
+    В некоторых случаях, особенно когда модель объекта иерархическая, это может быть
+    не так очевидно. Объект может сам ответить на команду или решить
+    делегировать ее какому-нибудь подчиненному объекту. Если сделаете так, то откроете для себя паттерн
+    <a class="gof-pattern" href="http://ru.wikipedia.org/wiki/%D0%A6%D0%B5%D0%BF%D0%BE%D1%87%D0%BA%D0%B0_%D0%BE%D0%B1%D1%8F%D0%B7%D0%B0%D0%BD%D0%BD%D0%BE%D1%81%D1%82%D0%B5%D0%B9">"Цепочка обязанностей"</a>.
 
- *  Some commands are stateless chunks of pure behavior like the `JumpCommand`
-    in the first example. In cases like that, having <span
-    name="singleton">more</span> than one instance of that class wastes memory
-    since all instances are equivalent. The <a class="gof-pattern"
-    href="flyweight.html">Flyweight</a> pattern addresses that.
+ *  Некоторые команды -- куски чистого поведения без состояний, например,
+    `JumpCommand` в первом примере. В таких случаях поддержка
+    <span name="singleton">более</span> одного экземпляра класса приведет к лишним потерям памяти,
+    так как все экземпляры эквивалентны. С этим справляется паттерн
+    <a class="gof-pattern" href="flyweight.html">"Приспособленец"</a>.
 
     <aside name="singleton">
 
-    You could make it a <a href="singleton.html" class="gof-
-    pattern">Singleton</a> too, but friends don't let friends create singletons.
+    Также можно было бы сделать его паттерном <a href="singleton.html" class="gof-pattern">"Одиночкой"</a>,
+    но друзья не позволяют друзьям создавать одиночек.
 
     </aside>

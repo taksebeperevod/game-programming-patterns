@@ -72,7 +72,7 @@ namespace CommandPattern
       virtual void execute() { fireGun(); }
     };
 
-    // You get the idea...
+    // Ну, вы поняли идею...
     //^command-classes
 
     //^input-handler-class
@@ -81,7 +81,7 @@ namespace CommandPattern
     public:
       void handleInput();
 
-      // Methods to bind commands...
+      // Методы для привязки команд...
 
     private:
       Command* buttonX_;
@@ -149,7 +149,7 @@ namespace CommandPattern
       if (isPressed(BUTTON_A)) return buttonA_;
       if (isPressed(BUTTON_B)) return buttonB_;
 
-      // Nothing pressed, so do nothing.
+      // Ничего не нажато, поэтому ничего не делать.
       return NULL;
     }
     //^handle-input-return
@@ -214,22 +214,22 @@ namespace CommandPattern
       //^get-move
       Command* handleInput()
       {
-        // Get the selected unit...
+        // Берем выбранную единицу техники...
         Unit* unit = getSelectedUnit();
 
         if (isPressed(BUTTON_UP)) {
-          // Move the unit up one.
+          // Перемещаем единицу техники на один вверх.
           int destY = unit->y() - 1;
           return new MoveUnitCommand(unit, unit->x(), destY);
         }
 
         if (isPressed(BUTTON_DOWN)) {
-          // Move the unit down one.
+          // Перемещаем единицу техники на один вниз.
           int destY = unit->y() + 1;
           return new MoveUnitCommand(unit, unit->x(), destY);
         }
 
-        // Other moves...
+        // Другие перемещения...
 
         return NULL;
       }
@@ -262,8 +262,8 @@ namespace CommandPattern
 
         virtual void execute()
         {
-          // Remember the unit's position before the move
-          // so we can restore it.
+          // Запоминаем позицию единицы техники перед перемещением,
+          // чтобы иметь возможность восстановить ее.
           xBefore_ = unit_->x();
           yBefore_ = unit_->y();
 
