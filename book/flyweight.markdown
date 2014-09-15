@@ -1,100 +1,100 @@
-^title Flyweight
-^section Design Patterns Revisited
+^title Приспособленец
+^section Пересмотренные паттерны проектирования
 
-The fog lifts, revealing a majestic old growth forest. Ancient hemlocks,
-countless in number, tower over you forming a cathedral of greenery. The stained
-glass canopy of leaves fragments the sunlight into golden shafts of mist.
-Between giant trunks, you can make out the massive forest receding into the
-distance.
+Поднимается туман, открывая взору старый величественный лес. Древние болиголовы
+бесчисленным числом возвышаются над вами, образуя собор из зелени. Витражный
+навес из листьев преломляет солнечный свет, превращая его в золотые лучи тумана.
+Меж гигантских стволов можно разглядеть густой лес, простирающийся
+вдаль.
 
-This is the kind of otherworldly setting we dream of as game developers, and
-scenes like these are often enabled by a pattern whose name couldn't possibly be
-more modest: the humble Flyweight.
+О подобном другом мире мы мечтаем, будучи разработчиками игр, и
+такие сцены часто возможны благодаря паттерну
+со скромнейшим названием "Приспособленец" (Flyweight).
 
-## Forest for the Trees
+## Лес вместо деревьев
 
-I can describe a sprawling woodland with just a few sentences, but actually
-*implementing* it in a realtime game is another story. When you've got an entire
-forest of individual trees filling the screen, all that a graphics programmer
-sees is the millions of polygons they'll have to somehow shovel onto the GPU
-every sixtieth of a second.
+Я могу описать густой лес всего несколькими предложениями, но фактически
+его *реализация* в игре в режиме реального времени -- совсем другая история. Когда целый
+лес из отдельных деревьев заполняет экран, всё, что видит программист графики --
+это миллионы полигонов, которые нужно как-то передавать видеокарте
+каждую шестидесятую часть секунды.
 
-We're talking thousands of trees, each with detailed geometry containing
-thousands of polygons. Even if you have enough *memory* to describe that forest,
-in order to render it, that data has to make its way over the bus from the CPU
-to the GPU.
+Мы говорим о тысячах деревьев, каждое из которых имеет детализированную геометрию
+из тысяч полигонов. Даже если достаточно *памяти*, чтобы описать этот лес,
+для визуализации данные должны проделать путь по шине от центрального процессора
+до видеокарты.
 
-Each tree has a bunch of data associated with it:
+Каждое дерево имеет набор связанных с ним данных:
 
-* A mesh of polygons that define the shape of the trunk, branches, and greenery.
-* Textures for the bark and leaves.
-* Its location and orientation in the forest.
-* Tuning parameters like size and tint so that each tree looks different.
+* Сетка из полигонов, которые определяют форму ствола, ветвей и зелени.
+* Текстуры для коры и листьев.
+* Его расположение и ориентация в лесу.
+* Настраиваемые параметры, вроде размера и оттенка, чтобы каждое дерево выглядело разным.
 
-If you were to sketch it out in code, you'd have something like this:
+Если бы пришлось набросать это в коде, вышло бы что-то вроде этого:
 
 ^code heavy-tree
 
-That's a lot of data, and the mesh and textures are particularly large. An entire
-forest of these objects is too much to throw at the GPU in one frame.
-Fortunately, there's a time-honored trick to handling this.
+Тут много данных, и особенно велики сетка и текстуры. Целый
+лес данных объектов -- это слишком много, чтобы выбрасывать на центральный процессор за один кадр.
+К счастью, есть проверенный временем трюк, позволяющий решить это проблему.
 
-The key observation is that even though there may be thousands of trees in the
-forest, they mostly look similar. They will likely all use the <span
-name="same">same</span> mesh and textures. That means most of the fields in
-these objects are the *same* between all of those instances.
+Ключевое наблюдение заключается в том, что хотя в лесу могут быть
+тысячи деревьев, в основном все они выглядят похоже. Скорее всего, все они используют <span
+name="same">одинаковую</span> сетку и текстуры. Это значит, что большинство полей в
+данных объектах *одинаковы* во всех экземплярах.
 
 <aside name="same">
 
-You'd have to be crazy or a billionaire to budget for the artists to
-individually model each tree in an entire forest.
+Вы должны быть сумасшедшим или миллиардером с соответствующим бюджетом для художников, чтобы
+индивидуально моделировать каждое дерево в целом лесу.
 
 </aside>
 
 <span name="trees"></span>
 
-<img src="images/flyweight-trees.png" alt="A row of trees, each of which has its own Mesh, Bark, Leaves, Params, and Position." />
+<img src="images/flyweight-trees.png" alt="Ряд деревьев, каждое из которых имеет собственную сетку, кору, листья, параметры и положение." />
 
 <aside name="trees">
 
-Note that the stuff in the small boxes is the same for each tree.
+Обратите внимание, что написанное в маленьких прямоугольниках одинаково для каждого дерева.
 
 </aside>
 
-We can model that explicitly by splitting the object in half. First, we pull
-out the data that all trees have <span name="type">in common</span> and move it
-into a separate class:
+Можно смоделировать это явно, разбив объект наполовину. Сперва вытащим
+данные, являющиеся <span name="type">общими</span> для всех деревьев и переместим их
+в отдельный класс:
 
 ^code tree-model
 
-The game only needs a single one of these, since there's no reason to have the
-same meshes and textures in memory a thousand times. Then, each *instance* of a
-tree in the world has a *reference* to that shared `TreeModel`. What remains in
-`Tree` is the state that is instance-specific:
+Игре необходим только один из них, потому что нет причин помещать
+одни и те же сетки и текстуры в память тысячу раз. Затем каждый *экземпляр*
+дерева в мире получает *ссылку* на совместно используемый `TreeModel`. Что остается в
+`Tree` -- состояние, уникальное для каждого экземпляра:
 
 ^code split-tree
 
-You can visualize it like this:
+Можно представить это так:
 
-<img src="images/flyweight-tree-model.png" alt="A row of trees each with its own Params and Position, but pointing to a shared Model with a Mesh, Bark, and Leaves." />
+<img src="images/flyweight-tree-model.png" alt="Ряд деревьев, где каждое имеет собственные параметры и позицию, но указывает на совместно используемую модель с сеткой, корой и листьями." />
 
 <aside name="type">
 
-This looks a lot like the <a href="type-object.html" class="pattern">Type
-Object</a> pattern. Both involve delegating part of an object's state to some
-other object shared between a number of instances. However, the intent behind
-the patterns differs.
+Это выглядит очень похожим на паттерн <a href="type-object.html" class="pattern">"Тип
+объекта"</a>. Оба включают делегирование части состояния объекта некоему
+другому объекту, совместно используемому несколькими экземплярами. Как бы то ни было, цели
+паттернов различны.
 
-With a type object, the goal is to minimize the number of classes you have to
-define by lifting "types" into your own object model. Any memory sharing you get
-from that is a bonus. The Flyweight pattern is purely about efficiency.
+Цель паттерна "Тип объекта" (Type Object) -- минимизировать количество
+классов, требующих определения, путем проталкивания "типов" в собственную объектную модель. Любое совместное использование памяти, получаемое при этом,
+всего лишь бонус. Паттерн "Приспособленец" (Flyweight) полностью нацелен на эффективность.
 
 </aside>
 
-This is all well and good for storing stuff in main memory, but that doesn't
-help rendering. Before the forest gets on screen, it has to work its way over to
-the GPU. We need to express this resource sharing in a way that the graphics
-card understands.
+Все это хорошо для хранения в основной памяти, но не
+помогает при рендеринге. Перед тем как лес окажется на экране, ему нужно пройти путь до
+центрального процессора. Мы должны выразить это совместное использование ресурсов способом,
+понятным видеокарте.
 
 ## A Thousand Instances
 
