@@ -1,186 +1,186 @@
-^title Flyweight
-^section Design Patterns Revisited
+^title Приспособленец
+^section Пересмотренные паттерны проектирования
 
-The fog lifts, revealing a majestic old growth forest. Ancient hemlocks,
-countless in number, tower over you forming a cathedral of greenery. The stained
-glass canopy of leaves fragments the sunlight into golden shafts of mist.
-Between giant trunks, you can make out the massive forest receding into the
-distance.
+Поднимается туман, открывая взору старый величественный лес. Древние болиголовы
+бесчисленным числом возвышаются над вами, образуя собор из зелени. Витражный
+навес из листьев преломляет солнечный свет, превращая его в золотые лучи тумана.
+Меж гигантских стволов можно разглядеть густой лес, простирающийся
+вдаль.
 
-This is the kind of otherworldly setting we dream of as game developers, and
-scenes like these are often enabled by a pattern whose name couldn't possibly be
-more modest: the humble Flyweight.
+О подобном другом мире мы мечтаем, будучи разработчиками игр, и
+такие сцены часто возможны благодаря паттерну
+со скромнейшим названием "Приспособленец" (Flyweight).
 
-## Forest for the Trees
+## Лес вместо деревьев
 
-I can describe a sprawling woodland with just a few sentences, but actually
-*implementing* it in a realtime game is another story. When you've got an entire
-forest of individual trees filling the screen, all that a graphics programmer
-sees is the millions of polygons they'll have to somehow shovel onto the GPU
-every sixtieth of a second.
+Я могу описать густой лес всего несколькими предложениями, но фактически
+его *реализация* в игре в режиме реального времени -- совсем другая история. Когда целый
+лес из отдельных деревьев заполняет экран, всё, что видит программист графики --
+это миллионы полигонов, которые нужно как-то передавать видеокарте
+каждую шестидесятую часть секунды.
 
-We're talking thousands of trees, each with detailed geometry containing
-thousands of polygons. Even if you have enough *memory* to describe that forest,
-in order to render it, that data has to make its way over the bus from the CPU
-to the GPU.
+Мы говорим о тысячах деревьев, каждое из которых имеет детализированную геометрию
+из тысяч полигонов. Даже если у вас хватает *памяти*, чтобы описать этот лес,
+чтобы отрендерить его, данные должны проделать путь по шине от центрального процессора
+до видеокарты.
 
-Each tree has a bunch of data associated with it:
+Каждое дерево имеет набор связанных с ним данных:
 
-* A mesh of polygons that define the shape of the trunk, branches, and greenery.
-* Textures for the bark and leaves.
-* Its location and orientation in the forest.
-* Tuning parameters like size and tint so that each tree looks different.
+* Сетка из полигонов, которые определяют форму ствола, ветвей и зелени.
+* Текстуры для коры и листьев.
+* Его расположение и ориентация в лесу.
+* Настраиваемые параметры, вроде размера и оттенка, чтобы каждое дерево выглядело разным.
 
-If you were to sketch it out in code, you'd have something like this:
+Если бы пришлось набросать перечисленное в коде, вышло бы что-то вроде этого:
 
 ^code heavy-tree
 
-That's a lot of data, and the mesh and textures are particularly large. An entire
-forest of these objects is too much to throw at the GPU in one frame.
-Fortunately, there's a time-honored trick to handling this.
+Тут много данных, и особенно велики сетка и текстуры. Целый
+лес данных объектов -- это слишком много, чтобы выбрасывать на центральный процессор за один кадр.
+К счастью, есть проверенный временем трюк, позволяющий решить это проблему.
 
-The key observation is that even though there may be thousands of trees in the
-forest, they mostly look similar. They will likely all use the <span
-name="same">same</span> mesh and textures. That means most of the fields in
-these objects are the *same* between all of those instances.
+Ключевое наблюдение заключается в том, что хотя в лесу могут быть
+тысячи деревьев, в основном все они выглядят похоже. Скорее всего, все они используют <span
+name="same">одинаковую</span> сетку и текстуры. Это значит, что большинство полей в
+данных объектах *одинаковы* во всех экземплярах.
 
 <aside name="same">
 
-You'd have to be crazy or a billionaire to budget for the artists to
-individually model each tree in an entire forest.
+Нужно быть сумасшедшим или миллиардером с соответствующим бюджетом для художников, чтобы
+индивидуально моделировать каждое дерево в целом лесу.
 
 </aside>
 
 <span name="trees"></span>
 
-<img src="images/flyweight-trees.png" alt="A row of trees, each of which has its own Mesh, Bark, Leaves, Params, and Position." />
+<img src="images/flyweight-trees.png" alt="Ряд деревьев, каждое из которых имеет собственную сетку, кору, листья, параметры и положение."/>
 
 <aside name="trees">
 
-Note that the stuff in the small boxes is the same for each tree.
+Обратите внимание, что написанное в маленьких прямоугольниках одинаково для каждого дерева.
 
 </aside>
 
-We can model that explicitly by splitting the object in half. First, we pull
-out the data that all trees have <span name="type">in common</span> and move it
-into a separate class:
+Можно смоделировать это явно, разбив объект наполовину. Сперва вытащим
+данные, являющиеся <span name="type">общими</span> для всех деревьев и переместим их
+в отдельный класс:
 
 ^code tree-model
 
-The game only needs a single one of these, since there's no reason to have the
-same meshes and textures in memory a thousand times. Then, each *instance* of a
-tree in the world has a *reference* to that shared `TreeModel`. What remains in
-`Tree` is the state that is instance-specific:
+Игре необходим только один из них, потому что нет причины помещать
+одни и те же сетки и текстуры в память тысячу раз. Затем каждый *экземпляр*
+дерева в мире получает *ссылку* на совместно используемый `TreeModel`. Что остается в
+`Tree` -- состояние, уникальное для каждого экземпляра:
 
 ^code split-tree
 
-You can visualize it like this:
+Можно представить это так:
 
-<img src="images/flyweight-tree-model.png" alt="A row of trees each with its own Params and Position, but pointing to a shared Model with a Mesh, Bark, and Leaves." />
+<img src="images/flyweight-tree-model.png" alt="Ряд деревьев, где каждое имеет собственные параметры и позицию, но указывает на совместно используемую модель с сеткой, корой и листьями."/>
 
 <aside name="type">
 
-This looks a lot like the <a href="type-object.html" class="pattern">Type
-Object</a> pattern. Both involve delegating part of an object's state to some
-other object shared between a number of instances. However, the intent behind
-the patterns differs.
+Выглядит очень похоже на паттерн <a href="type-object.html" class="pattern">"Тип
+объекта"</a>. Оба включают делегирование части состояния объекта некоему
+другому объекту, совместно используемому несколькими экземплярами. Как бы то ни было, цели
+паттернов различны.
 
-With a type object, the goal is to minimize the number of classes you have to
-define by lifting "types" into your own object model. Any memory sharing you get
-from that is a bonus. The Flyweight pattern is purely about efficiency.
+Цель паттерна "Тип объекта" (Type Object) -- минимизировать количество
+классов, требующих определения, путем проталкивания "типов" в собственную объектную модель. Любое совместное использование памяти, получаемое при этом,
+всего лишь бонус. Паттерн "Приспособленец" (Flyweight) полностью нацелен на эффективность.
 
 </aside>
 
-This is all well and good for storing stuff in main memory, but that doesn't
-help rendering. Before the forest gets on screen, it has to work its way over to
-the GPU. We need to express this resource sharing in a way that the graphics
-card understands.
+Все это хорошо для хранения в основной памяти, но не
+помогает при рендеринге. Перед тем как лес окажется на экране, ему нужно пройти путь до
+центрального процессора. Мы должны выразить это совместное использование ресурсов способом,
+понятным видеокарте.
 
-## A Thousand Instances
+## Тысяча экземпляров
 
-To minimize the amount of data we have to push to the GPU, we want to be able to
-send the shared data -- the `TreeModel` -- just *once*. Then, separately, we
-push over every tree instance's unique data -- its position, color, and scale.
-Finally, we tell the GPU, "Use that one model to render each of these
-instances."
+Чтобы минимизировать количество данных, которые нужно протолкнуть к видеокарте, хочется иметь возможность
+отослать совместно используемые данные -- `TreeModel` -- только *однажды*. Затем отдельно
+проталкиваем уникальные данные каждого экземпляра дерева -- его позицию, цвет и масштаб.
+Наконец, говорим видеокарте: "Используй ту модель, чтобы отрендерить каждый из этих
+экземпляров."
 
-Fortunately, today's graphics APIs and <span name="hardware">cards</span>
-support exactly that. The details are fiddly and out of the scope of this book,
-but both Direct3D and OpenGL can do something called [*instanced
-rendering*](http://en.wikipedia.org/wiki/Geometry_instancing).
+К счастью, сегодняшние графические API и <span name="hardware">карты</span>
+поддерживают именно это. Подробности утомительны и выходят за рамки данной книги,
+но как Direct3D, так и OpenGL могут осуществлять нечто, называемое [*рендерингом
+инстансингом*](http://ru.wikipedia.org/wiki/Geometry_Instancing).
 
-In both APIs, you provide two streams of data. The first is the blob of common
-data that will be rendered multiple times -- the mesh and textures in our
-arboreal example. The second is the list of instances and their parameters that
-will be used to vary that first chunk of data each time it's drawn. With a
-single draw call, an entire forest appears.
+В обоих API вы предоставляете два потока данных. Первый является двоичным объектом общих
+данных, которые будут рендериться несколько раз -- сетка и текстуры в нашем
+"древесном" примере. Второй -- это список экземпляров и их параметров, которые
+будут использоваться для того, чтобы разнообразить первый кусок данных каждый раз при отрисовке. С помощью
+единственного вызова метода отрисовки появляется целый лес.
 
 <aside name="hardware">
 
-The fact that this API is implemented directly by the graphics card means the
-Flyweight pattern may be the only Gang of Four design pattern to have actual
-hardware support.
+Тот факт, что это API реализуется напрямую графической картой, означает, что
+паттерн "Приспособленец", может быть, единственный паттерн проектирования "Банды четырех", имеющий реальную
+аппаратную поддержку.
 
 </aside>
 
-## The Flyweight Pattern
+## Паттерн "Приспособленец"
 
-Now that we've got one concrete example under our belts, I can walk you through
-the general pattern. Flyweight, like its name implies, comes into play when you
-have objects that need to be more lightweight, generally because you have too
-many of them.
+Теперь, когда в нашем запасе есть один конкретный пример, я могу провести вас
+в целом по паттерну. "Приспособленец" ("Flyweight" по англ. -- игра слов "fly" -- лететь, "weight" -- вес) вступает в игру, когда есть
+объекты, требующие большей "легковесности", как правило, потому что их слишком
+много.
 
-With instanced rendering, it's not so much that they take up too much memory as
-it is they take too much *time* to push each separate tree over the bus to the
-GPU, but the basic idea is the same.
+При рендеринге инстансингом они не столько едят память,
+сколько отнимают *время* на проталкивание каждого отдельного дерева по шине к
+видеокарте, но основная идея остается той же.
 
-The pattern solves that by separating out an object's data into two kinds. The
-first kind of data is the stuff that's not specific to a single *instance* of
-that object and can be shared across all of them. The Gang of Four calls this
-the *intrinsic* state, but I like to think of it as the "context-free" stuff. In
-the example here, this is the geometry and textures for the tree.
+Паттерн решает это, разделяя данные объекта на два вида.
+Первый вид данных -- это не уникальные для отдельного *экземпляра*
+данного объекта вещи, которые могут совместно использоваться всеми экземплярами. "Банда четырех" называет их
+*внутренним* состоянием, но мне нравится думать о них, как о "контекстно-свободных" вещах. В
+приведенном примере, это геометрия и текстуры для дерева.
 
-The rest of the data is the *extrinsic* state, the stuff that is unique to that
-instance. In this case, that is each tree's position, scale, and color. Just
-like in the chunk of sample code up there, this pattern saves memory by sharing
-one copy of the intrinsic state across every place where an object appears.
+Остальные данные -- это *внешнее* состояние, вещи, уникальные для данного
+экземпляра. В данном случае это позиция, масштаб и цвет каждого дерева. Прямо
+как в куске кода из приведенного примера, данный паттерн экономит память, позволяя совместно использовать
+одну копию внешнего состояния всюду, где появляется объект.
 
-From what we've seen so far, this seems like basic resource sharing,
-hardly worth being called a pattern. That's partially because in this example
-here, we could come up with a clear separate *identity* for the shared state:
-the `TreeModel`.
+Исходя из ранее увиденного, это кажется обычным совместным использованием ресурсов
+и вряд ли стоит того, чтобы называться паттерном. Отчасти так происходит потому, что в приведенном примере
+мы могли бы создать совершенно отдельную *сущность* для совместно используемого состояния:
+`TreeModel`.
 
-I find this pattern to be less obvious (and thus more clever) when used in cases
-where there isn't a really well-defined identity for the shared object. In those
-cases, it feels more like an object is magically in multiple places at the same
-time. Let me show you another example.
+Я нахожу этот паттерн менее очевидным (и поэтому, более хитрым) при использовании в случаях,
+когда нет действительно хорошо определенной сущности для совместно используемого объекта. В таких
+случаях кажется, что объект магическим образом находится в нескольких местах
+одновременно. Позвольте продемонстрировать другой пример.
 
-## A Place To Put Down Roots
+## Место, где пустить корни
 
-The ground these trees are growing on needs to be represented in our game too.
-There can be patches of grass, dirt, hills, lakes, rivers, and whatever other
-terrain you can dream up. We'll make the ground *tile-based*: the surface of the
-world is a huge grid of tiny tiles. Each tile is covered in one kind of terrain.
+Земля, на которой растут деревья, тоже должна быть представлена в нашей игре.
+Там могут быть клочки травы, грязь, холмы, озера, реки и любой другой
+ландшафт, который только можно придумать. Мы сделаем землю *тайловой*: поверхность
+мира -- огромная сетка крошечных тайлов (плиток). Каждый тайл покрыт одним видом ландшафта.
 
-Each terrain type has a number of properties that affect gameplay:
+Каждый тип ландшафта имеет некоторое количество свойств, влияющих на геймплей:
 
-* A movement cost that determines how quickly players can move through it.
-* A flag for whether it's a watery terrain that can be crossed by boats.
-* A texture used to render it.
+* Цена хода, определяющая, как быстро игроки могут передвигаться по нему.
+* Флаг, является ли ландшафт водным, чтобы его можно было пересекать на лодках.
+* Текстура, используемая для рендеринга.
 
-Because we game programmers are paranoid about efficiency, there's no way we'd
-store all of that state in <span name="learned">each</span> tile in the world.
-Instead, a common approach is to use an enum for terrain types:
+Поскольку мы, разработчики игр, параноики по части эффективности, то никогда не будем
+хранить все это состояние в <span name="learned">каждом</span> тайле в мире.
+Вместо этого, общий подход -- использовать перечисление для типов ландшафта:
 
 <aside name="learned">
 
-After all, we already learned our lesson with those trees.
+В конце концов, мы уже усвоили урок с теми деревьями.
 
 </aside>
 
 ^code terrain-enum
 
-Then the world maintains a huge grid of those:
+Далее, мир поддерживает огромную сетку этих тайлов:
 
 <span name="grid"></span>
 
@@ -188,29 +188,29 @@ Then the world maintains a huge grid of those:
 
 <aside name="grid">
 
-Here I'm using a nested array to store the 2D grid. That's efficient in C/C++
-because it will pack all of the elements together. In Java or other memory-
-managed languages, doing that will actually give you an array of rows where each
-element is a *reference* to the array of columns, which may not be as memory-
-friendly as you'd like.
+Здесь я использую вложенный массив для хранения двумерной сетки. Это эффективно в C/C++,
+поскольку упакует все элементы вместе. В Java или других языках с автоматическим
+управлением памятью такой подход даст массив строк, где каждый
+элемент -- это *ссылка* на массив столбцов, что может быть не так дружественно для
+памяти, как бы хотелось.
 
-In either case, real code would be better served by hiding this implementation
-detail behind a nice 2D grid data structure. I'm doing this here just to keep it
-simple.
+В любом случае, реальный код будет лучше, если скрыть эту деталь реализации
+за симпатичной двумерной структурой данных. Я делаю это здесь, только чтобы сохранять вещи
+простыми.
 
 </aside>
 
-To actually get the useful data about a tile, we do something like:
+Чтобы действительно получить полезные данные о тайле, делаем что-то вроде этого:
 
 ^code enum-data
 
-You get the idea. This works, but I find it ugly. I think of movement cost and
-wetness as *data* about a terrain, but here that's embedded in code. Worse, the
-data for a single terrain type is smeared across a bunch of methods. It would be
-really nice to keep all of that encapsulated together. After all, that's what
-objects are designed for.
+Ну, вы поняли. Это работает, но я нахожу такое уродливым. Я думаю о цене хода и о
+влажности, как о *данных* ландшафта, но здесь это встроено в код. Хуже того,
+данные о единственном типе ландшафта размазаны по пачке методов. Было бы
+действительно хорошо хранить все это инкапсулированным вместе. В конце концов, вот для чего
+разработаны объекты.
 
-It would be great if we could have an actual terrain *class*, like:
+Было бы здорово иметь реальный *класс* ландшафта, например:
 
 <span name="const"></span>
 
@@ -218,39 +218,39 @@ It would be great if we could have an actual terrain *class*, like:
 
 <aside name="const">
 
-You'll notice that all of the methods here are `const`. That's no coincidence.
-Since the same object is used in multiple contexts, if you were to modify it,
-the changes would appear in multiple places simultaneously.
+Вы заметите, что все методы здесь `const`. Это не совпадение.
+Поскольку один и тот же объект используется в нескольких контекстах, если нужно будет модифицировать его,
+изменения появятся в нескольких местах одновременно.
 
-That's probably not what you want. Sharing objects to save memory should be an
-optimization that doesn't affect the visible behavior of the app. Because of
-this, Flyweight objects are almost always immutable.
+Возможно, это не то, чего вы хотите. Совместное использование объектов для экономии памяти должно быть
+оптимизацией, не влияющей на видимое поведение приложения. Из-за
+этого объекты "приспособленца" почти всегда неизменяемые.
 
 </aside>
 
-But we don't want to pay the cost of having an instance of that for each tile in
-the world. If you look at that class, you'll notice that there's actually
-*nothing* in there that's specific to *where* that tile is. In flyweight terms,
-*all* of a terrain's state is "intrinsic" or "context-free".
+Но мы не хотим оплачивать цену содержания экземпляра этого для каждого тайла в
+мире. Если вы посмотрите на данный класс, то увидите, что на самом деле там нет
+*ничего* определяющего, *где* расположен тайл. В терминах "приспособленца",
+*все* состояние ландшафта "внутреннее" или "контекстно-свободное".
 
-Given that, there's no reason to have more than one of each terrain type. Every
-grass tile on the ground is identical to every other one. Instead of having the
-world be a grid of enums or Terrain objects, it will be a grid of *pointers* to
-`Terrain` objects:
+Принимая это во внимание, нет причины содержать более одной единицы каждого типа ландшафта. Каждый
+тайл с травой на земле идентичен любому другому. Вместо того, чтобы иметь необходимость содержать
+мир в виде сетки перечислений или объектов ландшафта, сделаем его сеткой *указателей* на
+объекты `Terrain`:
 
 ^code world-terrain-pointers
 
-Each tile that uses the same terrain will point to the same terrain instance.
+Каждая плитка, использующая одинаковый ландшафт, будет указывать на один и тот же экземпляр ландшафта.
 
-<img src="images/flyweight-tiles.png" alt="A row of tiles. Each tile points to either a shared Grass, River, or Hill object." />
+<img src="images/flyweight-tiles.png" alt="Ряд тайлов. Каждый тайл указывает на совместно используемый объект травы, реки или холма."/>
 
-Since the terrain instances are used in multiple places, their lifetimes would
-be a little more complex to manage if you were to dynamically allocate them.
-Instead, we'll just store them directly in the world:
+Поскольку экземпляры ландшафта используются в нескольких местах, временем их жизни стало
+бы управлять немного сложнее, если бы мы выделяли под них память динамически.
+Вместо этого просто будем хранить их прямо в мире:
 
 ^code world-terrain
 
-Then we could use those to paint the ground like this:
+Далее можно использовать это, чтобы нарисовать землю так:
 
 <span name="generate"></span>
 
@@ -258,79 +258,79 @@ Then we could use those to paint the ground like this:
 
 <aside name="generate">
 
-I'll admit this isn't the world's greatest procedural terrain generation
-algorithm.
+Признаюсь, это не величайший алгоритм процедурной генерации ландшафта
+в мире.
 
 </aside>
 
-Now instead of methods on `World` for accessing the terrain properties, we can
-expose the `Terrain` object directly:
+Теперь вместо методов к `World` для доступа к свойствам ландшафта можно
+воздействовать на объект `Terrain` напрямую:
 
 ^code get-tile
 
-This way, `World` is no longer coupled to all sorts of details of terrains. If
-you want some property of the tile, you can get it right from that object:
+Таким образом, `World` более не связан со всяческими деталями ландшафтов. Если
+требуется какое-то свойство тайла, можно получить его прямо из объекта:
 
 ^code use-get-tile
 
-We're back to the pleasant API of working with real objects, and we did this
-with almost no overhead -- a pointer is often no larger than an enum.
+Мы вернулись к приятному API работы с реальными объектами и сделали это
+практически без дополнительных затрат ресурсов -- размер указателя часто не больше размера перечисления.
 
-## What About Performance?
+## Что насчёт производительности?
 
-I say "almost" here because the performance bean counters will rightfully want
-to know how this compares to using an enum. Referencing the terrain by pointer
-implies an indirect lookup. To get to some terrain data like the movement cost,
-you first have to follow the pointer in the grid to find the terrain object and
-then find the movement cost there. Chasing a pointer like this can cause a <span
-name="cache">cache miss</span>, which can slow things down.
+Я сказал здесь "практически", потому что дотошные борцы за производительность правомерно захотят
+узнать, как это соотносится с использованием перечисления. Ссылка на ландшафт по указателю
+предполагает косвенный поиск. Для получения каких-либо данных о ландшафте, например, цены хода,
+сначала придется следовать по указателю на сетку, чтобы найти объект ландшафта, а
+затем найти там цену хода. Такое следование по указателю может привести к <span
+name="cache">промаху в кэше</span>, что может замедлить работу.
 
 <aside name="cache">
 
-For lots more on pointer chasing and cache misses, see the chapter on <a href
-="data-locality.html" class="pattern">Data Locality</a>.
+Гораздо больше о следовании по указателю и промахах в кэше можно найти в главе о паттерне <a href
+="data-locality.html" class="pattern">"Местоположение данных"</a>.
 
 </aside>
 
-As always, the golden rule of optimization is *profile first*. Modern computer
-hardware is too complex for performance to be a game of pure reason anymore. In
-my tests for this chapter, there was no penalty for using a flyweight over an
-enum. Flyweights were actually noticeably faster. But that's entirely dependent
-on how other stuff is laid out in memory.
+Как всегда, золотое правило оптимизации -- *сначала профилируй*. Современное компьютерное
+аппаратное обеспечение слишком комплексно, чтобы производительность оставалась игрой чистого разума. В
+моих тестах для данной главы не было замечено потерь при использовании "приспособленца", а не
+перечисления. На самом деле, "приспособленцы" были заметно быстрее. Но это полностью зависит
+от того, как в памяти выстроились другие вещи.
 
-What I *am* confident of is that using flyweight objects shouldn't be dismissed
-out of hand. They give you the advantages of an object-oriented style without
-the expense of tons of objects. If you find yourself creating an enum and doing
-lots of switches on it, consider this pattern instead. If you're worried about
-performance, at least profile first before changing your code to a less
-maintainable style.
+В чем я *действительно* уверен, так это в том, что возможность использования объектов "приспособленца" не должна
+с ходу отклоняться. Они дают преимущества объектно-ориентированного стиля без
+издержек на тонны объектов. Если вы обнаружили, что создаете перечисление и делаете
+множество переключателей в нем, лучше рассмотрите данный паттерн. Если волнуетесь о
+производительности, по крайней мере, профилируйте перед тем, как привести код к менее
+поддерживаемому стилю.
 
-## See Also
+## См. также
 
- *  In the tile example, we just eagerly created an instance for each terrain
-    type and stored it in `World`. That made it easy to find and reuse the
-    shared instances. In many cases, though, you won't want to create *all* of
-    the flyweights up front.
+ *  В примере с тайлами мы просто поспешно создали по экземпляру для каждого
+    типа ландшафта и сохранили их в `World`. Это позволило легко находить и повторно использовать
+    совместные экземпляры. Однако во многих случаях вы не захотите создавать *всех*
+    "приспособленцев" сразу.
 
-    If you can't predict which ones you actually need, it's better to create
-    them on demand. To get the advantage of sharing, when you request one, you
-    first see if you've already created an identical one. If so, you just return
-    that instance.
+    Если невозможно предугадать, какие из них действительно понадобятся, лучше создавать
+    их по требованию. Чтобы получить преимущество совместного использования, при запросе одного
+    сначала убедитесь, не создали ли вы уже идентичный. Если так, просто верните
+    тот экземпляр.
 
-    This usually means that you have to encapsulate construction behind some
-    interface that can first look for an existing object. Hiding a constructor
-    like this is an example of the <a
-    href="http://en.wikipedia.org/wiki/Factory_method_pattern" class="gof-
-    pattern">Factory Method</a> pattern.
+    Обычно это означает, что нужно инкапсулировать конструкцию за каким-то
+    интерфейсом, который сначала может разыскать существующий объект. Скрытие конструктора
+    подобным образом -- это пример паттерна <a
+    href="http://ru.wikipedia.org/wiki/Фабричный_метод_(шаблон_проектирования)" class="gof-
+    pattern">"Фабричный метод"</a>.
 
-    In order to return a previously created flyweight, you'll have to keep track
-    of the pool of ones that you've already instantiated. As the name implies,
-    that means that an <a href="object-pool.html" class="pattern">Object
-    Pool</a> might be a helpful place to store them.
+    Чтобы возвратить ранее созданного "приспособленца", нужно отслеживать
+    пул уже созданных экземпляров. Как подразумевает название,
+    это означает, что паттерн <a href="object-pool.html" class="pattern">"Объектный
+    пул"</a> может быть полезным местом для их хранения.
 
- *  When you're using the <a class="pattern" href="state.html">State</a>
-    pattern, you often have "state" objects that don't have any fields specific
-    to the machine that the state is being used in. The state's
-    identity and methods are enough to be useful. In that case, you can apply
-    this pattern and reuse that same state instance in multiple state machines
-    at the same time without any problems.
+ *  Когда вы используете паттерн <a class="pattern" href="state.html">"Состояние"</a>,
+    у вас часто есть объекты "состояния", не имеющие никаких полей, уникальных для
+    машины, в которой используется состояние. Сущность
+    и методы состояния -- все, что нам пригодится. В таком случае можно применить
+    данный паттерн и повторно использовать тот же экземпляр состояния в нескольких машинах состояний
+    в одно и то же время без каких-либо проблем.
