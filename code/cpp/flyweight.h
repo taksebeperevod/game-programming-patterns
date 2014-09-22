@@ -80,7 +80,7 @@ namespace Flyweight
       TERRAIN_GRASS,
       TERRAIN_HILL,
       TERRAIN_RIVER
-      // Other terrains...
+      // Другие ландшафты...
     };
     //^terrain-enum
 
@@ -104,7 +104,7 @@ namespace Flyweight
         case TERRAIN_GRASS: return 1;
         case TERRAIN_HILL:  return 3;
         case TERRAIN_RIVER: return 2;
-          // Other terrains...
+          // Другие ландшафты...
       }
     }
 
@@ -115,7 +115,7 @@ namespace Flyweight
         case TERRAIN_GRASS: return false;
         case TERRAIN_HILL:  return false;
         case TERRAIN_RIVER: return true;
-          // Other terrains...
+          // Другие ландшафты...
       }
     }
     //^enum-data
@@ -161,7 +161,7 @@ namespace Flyweight
     private:
       Terrain* tiles_[WIDTH][HEIGHT];
 
-      // Other stuff...
+      // Другие вещи...
       //^omit
       Terrain grassTerrain_;
       Terrain hillTerrain_;
@@ -174,12 +174,12 @@ namespace Flyweight
     //^generate
     void World::generateTerrain()
     {
-      // Fill the ground with grass.
+      // Заполняем землю травой.
       for (int x = 0; x < WIDTH; x++)
       {
         for (int y = 0; y < HEIGHT; y++)
         {
-          // Sprinkle some hills.
+          // Возводим несколько холмов.
           if (random(10) == 0)
           {
             tiles_[x][y] = &hillTerrain_;
@@ -191,7 +191,7 @@ namespace Flyweight
         }
       }
 
-      // Lay a river.
+      // Прокладываем реку.
       int x = random(WIDTH);
       for (int y = 0; y < HEIGHT; y++) {
         tiles_[x][y] = &riverTerrain_;
@@ -255,7 +255,7 @@ namespace Flyweight
       Terrain hillTerrain_;
       Terrain riverTerrain_;
 
-      // Other stuff...
+      // Другие вещи...
     };
     //^world-terrain
   }
