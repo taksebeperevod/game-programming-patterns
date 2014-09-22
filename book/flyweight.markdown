@@ -305,32 +305,32 @@ name="cache">промаху в кэше</span>, что может замедли
 производительности, по крайней мере, профилируйте перед тем, как привести код к менее
 поддерживаемому стилю.
 
-## See Also
+## См. также
 
- *  In the tile example, we just eagerly created an instance for each terrain
-    type and stored it in `World`. That made it easy to find and reuse the
-    shared instances. In many cases, though, you won't want to create *all* of
-    the flyweights up front.
+ *  В примере с тайлами мы просто поспешно создали по экземпляру для каждого
+    типа ландшафта и сохранили их в `World`. Это позволило легко находить и повторно использовать
+    совместные экземпляры. Однако во многих случаях вы не захотите создавать *всех*
+    "приспособленцев" сразу.
 
-    If you can't predict which ones you actually need, it's better to create
-    them on demand. To get the advantage of sharing, when you request one, you
-    first see if you've already created an identical one. If so, you just return
-    that instance.
+    Если невозможно предугадать, какие из них действительно понадобятся, лучше создавать
+    их по требованию. Чтобы получить преимущество совместного использования, при запросе одного
+    сначала убедитесь, не создали ли вы уже идентичный. Если так, просто верните
+    тот экземпляр.
 
-    This usually means that you have to encapsulate construction behind some
-    interface that can first look for an existing object. Hiding a constructor
-    like this is an example of the <a
-    href="http://en.wikipedia.org/wiki/Factory_method_pattern" class="gof-
-    pattern">Factory Method</a> pattern.
+    Обычно это означает, что нужно инкапсулировать конструкцию за каким-то
+    интерфейсом, который сначала может разыскать существующий объект. Скрытие конструктора
+    подобным образом -- это пример паттерна <a
+    href="http://ru.wikipedia.org/wiki/Фабричный_метод_(шаблон_проектирования)" class="gof-
+    pattern">"Фабричный метод"</a>.
 
-    In order to return a previously created flyweight, you'll have to keep track
-    of the pool of ones that you've already instantiated. As the name implies,
-    that means that an <a href="object-pool.html" class="pattern">Object
-    Pool</a> might be a helpful place to store them.
+    Чтобы возвратить ранее созданного "приспособленца", нужно отслеживать
+    пул уже созданных экземпляров. Как подразумевает название,
+    это означает, что паттерн <a href="object-pool.html" class="pattern">"Объектный
+    пул"</a> может быть полезным местом для их хранения.
 
- *  When you're using the <a class="pattern" href="state.html">State</a>
-    pattern, you often have "state" objects that don't have any fields specific
-    to the machine that the state is being used in. The state's
-    identity and methods are enough to be useful. In that case, you can apply
-    this pattern and reuse that same state instance in multiple state machines
-    at the same time without any problems.
+ *  Когда вы используете паттерн <a class="pattern" href="state.html">"Состояние"</a>,
+    у вас часто есть объекты "состояния", не имеющие никаких полей, уникальных для
+    машины, в которой используется состояние. Сущность
+    и методы состояния -- все, что нам пригодится. В таком случае можно применить
+    данный паттерн и повторно использовать тот же экземпляр состояния в нескольких машинах состояний
+    в одно и то же время без каких-либо проблем.
