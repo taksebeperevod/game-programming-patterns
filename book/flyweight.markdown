@@ -155,32 +155,32 @@ name="same">одинаковую</span> сетку и текстуры. Это �
 случаях кажется, что объект магическим образом находится в нескольких местах
 одновременно. Позвольте продемонстрировать другой пример.
 
-## A Place To Put Down Roots
+## Место, где пустить корни
 
-The ground these trees are growing on needs to be represented in our game too.
-There can be patches of grass, dirt, hills, lakes, rivers, and whatever other
-terrain you can dream up. We'll make the ground *tile-based*: the surface of the
-world is a huge grid of tiny tiles. Each tile is covered in one kind of terrain.
+Земля, на которой растут деревья, тоже должна быть представлена в нашей игре.
+Там могут быть клочки травы, грязь, холмы, озера, реки и любой другой
+ландшафт, который только можно придумать. Мы сделаем землю *тайловой*: поверхность
+мира -- огромная сетка крошечных тайлов (плиток). Каждый тайл покрыт одним видом ландшафта.
 
-Each terrain type has a number of properties that affect gameplay:
+Каждый тип ландшафта имеет некоторое количество свойств, влияющих на геймплей:
 
-* A movement cost that determines how quickly players can move through it.
-* A flag for whether it's a watery terrain that can be crossed by boats.
-* A texture used to render it.
+* Цена хода, определяющая, как быстро игроки могут передвигаться по нему.
+* Флаг, является ли ландшафт водным, чтобы его можно было пересекать на лодках.
+* Текстура, используемая для рендеринга.
 
-Because we game programmers are paranoid about efficiency, there's no way we'd
-store all of that state in <span name="learned">each</span> tile in the world.
-Instead, a common approach is to use an enum for terrain types:
+Поскольку мы, разработчики игр, параноики по части эффективности, то никогда не будем
+хранить все это состояние в <span name="learned">каждом</span> тайле в мире.
+Вместо этого, общий подход -- использовать перечисление для типов ландшафта:
 
 <aside name="learned">
 
-After all, we already learned our lesson with those trees.
+В конце концов, мы уже усвоили урок с теми деревьями.
 
 </aside>
 
 ^code terrain-enum
 
-Then the world maintains a huge grid of those:
+Далее, мир поддерживает огромную сетку этих тайлов:
 
 <span name="grid"></span>
 
@@ -188,29 +188,29 @@ Then the world maintains a huge grid of those:
 
 <aside name="grid">
 
-Here I'm using a nested array to store the 2D grid. That's efficient in C/C++
-because it will pack all of the elements together. In Java or other memory-
-managed languages, doing that will actually give you an array of rows where each
-element is a *reference* to the array of columns, which may not be as memory-
-friendly as you'd like.
+Здесь я использую вложенный массив для хранения двумерной сетки. Это эффективно в C/C++,
+поскольку упакует все элементы вместе. В Java или других языках с автоматическим
+управлением памятью такой подход даст массив строк, где каждый
+элемент -- это *ссылка* на массив столбцов, что может быть не так дружественно для
+памяти, как бы хотелось.
 
-In either case, real code would be better served by hiding this implementation
-detail behind a nice 2D grid data structure. I'm doing this here just to keep it
-simple.
+В любом случае, реальный код будет лучше, если скрыть эту деталь реализации
+за симпатичной двумерной структурой данных. Я делаю это здесь, только чтобы сохранять вещи
+простыми.
 
 </aside>
 
-To actually get the useful data about a tile, we do something like:
+Чтобы действительно получить полезные данные о тайле, делаем что-то вроде этого:
 
 ^code enum-data
 
-You get the idea. This works, but I find it ugly. I think of movement cost and
-wetness as *data* about a terrain, but here that's embedded in code. Worse, the
-data for a single terrain type is smeared across a bunch of methods. It would be
-really nice to keep all of that encapsulated together. After all, that's what
-objects are designed for.
+Ну, вы поняли. Это работает, но я нахожу такое уродливым. Я думаю о цене хода и о
+влажности, как о *данных* ландшафта, но здесь это встроено в код. Хуже того,
+данные о единственном типе ландшафта размазаны по пачке методов. Было бы
+действительно хорошо хранить все это инкапсулированным вместе. В конце концов, вот для чего
+разработаны объекты.
 
-It would be great if we could have an actual terrain *class*, like:
+Было бы здорово иметь реальный *класс* ландшафта, например:
 
 <span name="const"></span>
 
@@ -218,39 +218,39 @@ It would be great if we could have an actual terrain *class*, like:
 
 <aside name="const">
 
-You'll notice that all of the methods here are `const`. That's no coincidence.
-Since the same object is used in multiple contexts, if you were to modify it,
-the changes would appear in multiple places simultaneously.
+Вы заметите, что все методы здесь `const`. Это не совпадение.
+Поскольку один и тот же объект используется в нескольких контекстах, если нужно будет модифицировать его,
+изменения появятся в нескольких местах одновременно.
 
-That's probably not what you want. Sharing objects to save memory should be an
-optimization that doesn't affect the visible behavior of the app. Because of
-this, Flyweight objects are almost always immutable.
+Возможно, это не то, чего вы хотите. Совместное использование объектов для экономии памяти должно быть
+оптимизацией, не влияющей на видимое поведение приложения. Из-за
+этого объекты "приспособленца" почти всегда неизменяемые.
 
 </aside>
 
-But we don't want to pay the cost of having an instance of that for each tile in
-the world. If you look at that class, you'll notice that there's actually
-*nothing* in there that's specific to *where* that tile is. In flyweight terms,
-*all* of a terrain's state is "intrinsic" or "context-free".
+Но мы не хотим оплачивать цену содержания экземпляра этого для каждого тайла в
+мире. Если вы посмотрите на данный класс, то увидите, что на самом деле там нет
+*ничего* определяющего, *где* расположен тайл. В терминах "приспособленца",
+*все* состояние ландшафта "внутреннее" или "контекстно-свободное".
 
-Given that, there's no reason to have more than one of each terrain type. Every
-grass tile on the ground is identical to every other one. Instead of having the
-world be a grid of enums or Terrain objects, it will be a grid of *pointers* to
-`Terrain` objects:
+Принимая это во внимание, нет причины содержать более одной единицы каждого типа ландшафта. Каждый
+тайл с травой на земле идентичен любому другому. Вместо того, чтобы иметь необходимость содержать
+мир в виде сетки перечислений или объектов ландшафта, сделаем его сеткой *указателей* на
+объекты `Terrain`:
 
 ^code world-terrain-pointers
 
-Each tile that uses the same terrain will point to the same terrain instance.
+Каждая плитка, использующая одинаковый ландшафт, будет указывать на один и тот же экземпляр ландшафта.
 
-<img src="images/flyweight-tiles.png" alt="A row of tiles. Each tile points to either a shared Grass, River, or Hill object." />
+<img src="images/flyweight-tiles.png" alt="Строка тайлов. Каждый тайл указывает на совместно используемый объект травы, реки или холма." />
 
-Since the terrain instances are used in multiple places, their lifetimes would
-be a little more complex to manage if you were to dynamically allocate them.
-Instead, we'll just store them directly in the world:
+Поскольку экземпляры ландшафта используются в нескольких местах, временем их жизни стало
+бы управлять немного сложнее, если бы мы выделяли под них память динамически.
+Вместо этого просто будем хранить их прямо в мире:
 
 ^code world-terrain
 
-Then we could use those to paint the ground like this:
+Далее можно использовать это, чтобы нарисовать землю так:
 
 <span name="generate"></span>
 
@@ -258,23 +258,23 @@ Then we could use those to paint the ground like this:
 
 <aside name="generate">
 
-I'll admit this isn't the world's greatest procedural terrain generation
-algorithm.
+Признаюсь, это не величайший алгоритм процедурной генерации ландшафта
+в мире.
 
 </aside>
 
-Now instead of methods on `World` for accessing the terrain properties, we can
-expose the `Terrain` object directly:
+Теперь вместо методов к `World` для доступа к свойствам ландшафта можно
+воздействовать на объект `Terrain` напрямую:
 
 ^code get-tile
 
-This way, `World` is no longer coupled to all sorts of details of terrains. If
-you want some property of the tile, you can get it right from that object:
+Таким образом, `World` более не связан со всяческими деталями ландшафтов. Если
+требуется какое-то свойство тайла, можно получить его прямо из объекта:
 
 ^code use-get-tile
 
-We're back to the pleasant API of working with real objects, and we did this
-with almost no overhead -- a pointer is often no larger than an enum.
+Мы вернулись к приятному API работы с реальными объектами и сделали это
+практически без дополнительных затрат ресурсов -- размер указателя часто не больше размера перечисления.
 
 ## What About Performance?
 
