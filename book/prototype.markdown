@@ -1,13 +1,13 @@
 ^title Прототип
 ^section Пересмотренные паттерны проектирования
 
-The first time I heard the word "prototype" was in *Design Patterns*. Today, it
-seems like everyone is saying it, but it turns out they aren't talking about the
-<a href="http://en.wikipedia.org/wiki/Prototype_pattern"
-class="gof-pattern">design pattern</a>. We'll cover that here, but I'll also
-show you other, more interesting places where the term "prototype" and the
-concepts behind it have popped up. But first, let's revisit the <span
-name="original">original</span> pattern.
+Впервые, я услышал термин "прототип" в Паттернах Проектирования. Сегодня, 
+кажется, его использую все подряд, но только не в разговорах о 
+<a href="https://ru.wikipedia.org/wiki/Прототип_(шаблон_проектирования)"
+class="gof-pattern">паттерне проектирования</a>. Мы обсудим это, а также я покажу
+другие места, поинтереснее, откуда термин "прототип" и концепция, 
+стоящая за этим словом, появились на свет. Но сперва давайте вернемся к <span
+name="original">оригинальным</span> паттернам.
 
 <aside name="original">
 
