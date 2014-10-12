@@ -1,5 +1,5 @@
-^title Prototype
-^section Design Patterns Revisited
+^title Прототип
+^section Пересмотренные паттерны проектирования
 
 The first time I heard the word "prototype" was in *Design Patterns*. Today, it
 seems like everyone is saying it, but it turns out they aren't talking about the
