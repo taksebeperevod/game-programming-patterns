@@ -8,7 +8,7 @@ namespace PrototypePattern
     //^monster-classes
     class Monster
     {
-      // Stuff...
+      // Данные...
     };
 
     class Ghost : public Monster {};
@@ -42,7 +42,7 @@ namespace PrototypePattern
       }
     };
 
-    // You get the idea...
+    // Ну вы поняли...
     //^spawner-classes
   }
 
@@ -55,7 +55,7 @@ namespace PrototypePattern
       virtual ~Monster() {}
       virtual Monster* clone() = 0;
 
-      // Other stuff...
+      // Прочие данные...
     };
     //^virtual-clone
 

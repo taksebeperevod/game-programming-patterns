@@ -1,103 +1,103 @@
-^title Prototype
-^section Design Patterns Revisited
+^title Прототип
+^section Пересмотренные паттерны проектирования
 
-The first time I heard the word "prototype" was in *Design Patterns*. Today, it
-seems like everyone is saying it, but it turns out they aren't talking about the
-<a href="http://en.wikipedia.org/wiki/Prototype_pattern"
-class="gof-pattern">design pattern</a>. We'll cover that here, but I'll also
-show you other, more interesting places where the term "prototype" and the
-concepts behind it have popped up. But first, let's revisit the <span
-name="original">original</span> pattern.
+Впервые, я услышал термин "прототип" в Паттернах Проектирования. Сегодня, 
+кажется, его использую все подряд, но только не в разговорах о 
+<a href="https://ru.wikipedia.org/wiki/Прототип_(шаблон_проектирования)"
+class="gof-pattern">паттерне проектирования</a>. Мы обсудим это, а также я покажу
+другие места, поинтереснее, откуда термин "прототип" и концепция, 
+стоящая за этим словом, появились на свет. Но сперва давайте вернемся к <span
+name="original">оригинальным</span> паттернам.
 
 <aside name="original">
 
-I don't say "original" lightly here. *Design Patterns* cites Ivan Sutherland's
-legendary [Sketchpad](http://en.wikipedia.org/wiki/Sketchpad) project in *1963*
-as one of the first examples of this pattern in the wild. While everyone else
-was listening to Dylan and the Beatles, Sutherland was busy just, you know,
-inventing the basic concepts of CAD, interactive graphics, and object-oriented
-programming.
+Я не говорю "оригинальный" легкомысленно. *Паттерны Проектирования* цитируют легендарный
+проект Айвена Сазерленда [Sketchpad](http://en.wikipedia.org/wiki/Sketchpad), созданный в *1963*,
+как один из первых примеров этого паттерна в дикой природе. Пока все остальные
+слушали Дилана и Битлз, Сазерленд бы занят, что бы вы понимали,
+изобретением базовых концепций CAD, интерактивной графики и объектно-ориентированного
+программирования.
 
-Watch [the demo](http://www.youtube.com/watch?v=USyoT_Ha_bA) and prepare to be
-blown away.
+Просмотрите [демонстрацию](http://www.youtube.com/watch?v=USyoT_Ha_bA) и приготовьтесь
+быть поражённым.
 
 </aside>
 
-## The Prototype Design Pattern
+## Паттерн проектирования Прототип
 
-Pretend we're making a game in the style of Gauntlet. We've got creatures and
-fiends swarming around the hero, vying for their share of his flesh. These
-unsavory dinner companions enter the arena by way of "spawners", and there is a
-different spawner for each kind of enemy.
+Представьте, что мы делаем игру в стиле Gauntlet. У нас есть существа и
+демоны, роящиеся вокруг героя и борющиеся за свою долю его плоти. Эти
+сомнительные братья по ужину выходят на арену с помощью "спавнеров", и для каждого
+вида врага есть свой спавнер.
 
-For the sake of this example, let's say we have different classes for each kind
-of monster in the game -- `Ghost`, `Demon`, `Sorcerer`, etc., like:
+Ради этого примера, допустим, у нас есть разные классы для каждого вида
+монстров в игре -- `Ghost`, `Demon`, `Sorcerer`, и т.д., вида:
 
 ^code monster-classes
 
-A spawner constructs instances of one particular monster type. To support every
-monster in the game, we *could* brute-force it by having a spawner class for
-each monster class, leading to a parallel class hierarchy:
+Спавнер создает экземпляр одного конкретного вида монстра. Для поддержки всех
+монстров в игре, мы *могли* бы перебрать их и написать для каждого
+свой спавнер, создав параллельную иерархию классов:
 
 <span name="inherits-arrow"></span>
 
-<img src="images/prototype-hierarchies.png" alt="Parallel class hierarchies. Ghost, Demon, and Sorceror all inherit from Monster. GhostSpawner, DemonSpawner, and SorcerorSpawner inherit from Spawner." />
+<img src="images/prototype-hierarchies.png" alt="Параллельные иерархии классов. Ghost, Demon, и Sorceror наследуются от Monster. GhostSpawner, DemonSpawner, и SorcerorSpawner -- от Spawner." />
 
 <aside name="inherits-arrow">
 
-I had to dig up a dusty UML book to make this diagram. The <img
-src="images/arrow-inherits.png" class="arrow" alt="A UML arrow." /> means "inherits from".
+Я отрыл пыльную книгу по UML, что бы сделать эту диаграмму. <img
+src="images/arrow-inherits.png" class="arrow" alt="UML стрелка." /> означает "наследуется от".
 
 </aside>
 
-Implementing it would look like this:
+Реализация выглядит следующим образом:
 
 ^code spawner-classes
 
-Unless you get paid by the line of code, this obviously is not a fun way
-to hack this together. Lots of classes, lots of boilerplate, lots of redundancy,
-lots of duplication, lots of repeating myself...
+Очевидно, такой способ может быть забавным, только если вам платят за 
+количество строк кода. Куча классов, шаблонов, много избыточности,
+дублирования, повторений...
 
-The Prototype pattern offers a solution. The key idea is that *an object can
-spawn other objects similar to itself*. If you have one ghost, you can make more
-ghosts from it. If you have a demon, you can make other demons. Any monster can
-be treated as a *prototypal* monster used to generate other versions of
-itself.
+Паттерн Прототип предлагает решение. Ключевая идея -- *объект может
+производить другие, подобные себе объекты*. Если у вас есть призрак, вы можете сделать из него
+сделать ещё парочку призраков. Если у вас есть демон, вы можете сделать других демонов. Любой монстр может
+рассматриваться как *прототип* монстра, используемого для генерации других версий
+себе подобного.
 
-To implement this, we give our base class, `Monster`, an abstract `clone()`
-method:
+Чтобы сделать это, мы даем нашему базовому классу, `Monster`, абстрактный метод
+`clone()`:
 
 ^code virtual-clone
 
-Each monster subclass provides an implementation that returns a new object
-identical in class and state to itself. For example:
+Каждый подкласс монстра предоставляет реализацию, которая возвращает новый объект 
+идентичный объекту в классе и состояния самого себя. Например:
 
 ^code clone-ghost
 
-Once all our monsters support that, we no longer need a spawner class for each
-monster class. Instead, we define a single one:
+Раз все наши монстры это поддерживают, нам больше не нужен класс спавнера для каждого
+класса монстра. Вместо этого, мы определяем всего один:
 
 ^code spawner-clone
 
-It internally holds a monster, a hidden one whose sole purpose is to be used by
-the spawner as a template to stamp out more monsters like it, sort of like a
-queen bee who never leaves the hive.
+Он содержит монстра, скрытого, словно пчелиная матка в своем улье,
+единственным предназначением которого, быть шаблоном для штамповки
+других таких же монстров.
 
-<img src="images/prototype-spawner.png" alt="A Spawner contains a prototype field referencing a Monster. It calls clone() on the prototype to create new monsters." />
+<img src="images/prototype-spawner.png" alt="Спавнер содержит поле прототип, ссылающегося на монстра. Он вызывает метод clone() прототипа для создания новых монстров." />
 
-To create a ghost spawner, we create a prototypal ghost instance and
-then create a spawner holding that prototype:
+Для создания "спавнера" призраков, мы просто создаем экземпляр призрака-прототипа и
+затем создаем содержащий его "спавнер".
 
 ^code spawn-ghost-clone
 
-One neat part about this pattern is that it doesn't just clone the *class* of
-the prototype, it clones its *state* too. This means we could make a spawner for
-fast ghosts, weak ghosts, or slow ghosts just by creating an appropriate
-prototype ghost.
+Одна важная деталь -- этот паттерн копирует не только *класс* прототипа,
+он копирует и его *состояние* тоже. Это означает, что мы можем создать спавнер для
+быстрых, медленных или слабых призраков, просто создав соответствующий
+прототип призрака.
 
-I find something both elegant and yet surprising about this pattern. I can't
-imagine coming up with it myself, but I can't imagine *not* knowing about it now
-that I do.
+Я нахожу этот паттерн одновременно изящным и удивительным. Я не представляю,
+что дошел бы до него сам, но и *не* могу представить, как смог бы работать
+без него.
 
 ### How well does it work?
 
