@@ -1,0 +1,615 @@
+﻿Цель
+
+Выполнить серию последовательных операций мгновенно или одновременно.
+
+Мотивация
+
+Компьютеры в своей сути - последовательные создания. Их сила идет из способности разбивать продолжительные задачи на маленькие шаги, которые можно выполнять один за другим. Тем не менее, часто пользователям нужно видеть, как что-то происходит мгновенно, или как  несколько задач выполняются одновременно.
+
+Это стало не так актуально с появлением многопоточных и мультиядерных систем, но даже с несколькими ядрами лишь некоторые операции действительно выполняются полностью параллельно.
+
+Рассмотрим для примера то, что есть во всех игровых движках - система рендеринга. Когда игра рисует мир для пользователя, это происходит за один шаг: горы за горизонтом, зеленые холмы, деревья, все выводится сразу. Если пользователь увидит последовательное отображение элементов - иллюзия целостности мира будет разрушена. Сцена должна обновляться плавно и быстро, отображая серию законченных кадров, каждый из которых появляется мгновенно.
+
+Паттерн Double Buffer (двойная буферизация), поможет нам решить эту задачу, но для начала немного поговорим о том, как компьютер отображает графику.
+
+Кратко о том, как работает компьютерная графика
+
+Такой экран как монитор компьютера рисует за раз один пиксель. В каждой строке пикселей он двигается слева направо, затем переходит вниз на следующую. При достижении правого нижнего угла, он возвращается в левый верхний и начинает все заново. Он так быстро это делает(примерно 60 раз в секунду), что наши глаза не успевают разглядеть развертку изображения. Мы видим неподвижное поле цветных пикселей – картинку.
+
+Это очень упрощенное объяснение. Если вы человек, работающий с железом на низком уровне, вас наверное трясет от прочитанного. Не стесняйтесь, переходите к следующей секции. Вы знаете более чем достаточно чтобы понять оставшуюся часть главы. Но если вы не тот о ком я говорю, то мне нужно предоставить вам достаточно контекста чтобы вы поняли паттерн, речь о котором пойдет чуть позже.
+
+Представьте себе крошечный шланг, который выплевывает пиксели на экран. Различные цвета движутся к концу шланга и распыляются по всему дисплею. За один ход, отправляется один бит цвета одному пикселю. Так как же шланг знает, какие цвета отправлять и куда?
+
+В большинстве компьютеров, данные об этом берутся из буфера кадров. Буфер кадров представляет собой массив пикселей в оперативной памяти компьютера, где каждая пара байт представляет цвет пикселя. Когда шланг распыляет пиксели, он считывает цвета из этого массива. По байту за раз.
+
+Конкретное соответствие между числовым значением байта и цветом задается исходя из формата пикселя и глубины цвета в системе. В настоящее время в большинстве игровых консолей каждый пиксель задается 32 битами: по 8 бит на красный, зеленый и голубой каналы, и еще 8 для различных целей.
+
+Для того, чтобы наша игра появилась на экране, все что нам нужно делать - записывать в этот массив. Любой, даже безумно сложный графический алгоритм сводится к записи конкретных значений байтов в буфер кадра. Но есть одна маленькая проблема.
+
+Ранее я сказал, что компьютеры последовательны. Если компьютер выполняет кусок нашего кода для отрисовки картинки, мы не можем ожидать, что он выполнит что-нибудь еще в это же время. В целом все верно, но есть пара вещей, которые происходят в процессе работы нашей программы. Одна из них заключается в том, что видеодисплей будет постоянно читать буфер кадра, пока игра запущена. Это может создать для нас проблему.
+
+Скажем, мы хотим нарисовать на экране смайлик. Наша программа начинает постепенно заполнять буфер кадра, закрашивая пиксели. Мы не осознаем, что видеодрайвер вытягивает данные из буфера в том же порядке, в каком мы их записываем. Пока он читает пиксели, которые мы уже закрасили, наш смайлик появляется на экране. Но вскоре он опережает нас и начинает читать еще незакрашенные пиксели. Полный разрыв башки: отвратительный визуальный баг - вы видете только половину того, что должно быть нарисовано на экране.
+
+Мы начинаем закрашивать пиксели, а следом за нами видеодрайвер начинает читать буфер кадра (Рис. 1). Видеодрайвер догоняет отрисовщика и проскальзывает мимо к пикселям, которые мы еще не закрасили (Рис. 2). Мы закончили отрисовку (Рис. 3), но драйвер не прочитал несколько последних пикселей.
+
+В результате (Рис. 4) пользователь видит только половину картины. И "разрыв башки", как вы видите, я употребил не случайно.
+
+Вот почему нам необходим этот паттерн. Наша программа отрисовывает пиксели один за другим, но нам нужно, чтобы видеодрайвер увидел их все сразу - один обновляемый смайлик не лучшее решение, нужен еще один. Двойная буферизация решает проблему. Как? Я объясню это по аналогии.
+
+Акт 1, Сцена 1
+
+Представьте себе, пользователи смотрят наш спектакль. Между двумя сценами нам необходимо сменить декорации. Если рабочие сцены просто выйдут на нее и начнут их передвигать, это нарушит целостность картины. Мы, конечно, можем притушить свет (в реальности в театрах так и поступают), но зрители все равно знают - что-то происходит. Мы же хотим избежать этих временных задержек между сценами.
+
+И, немного увеличив площадь, мы выступим с гениальным решением: мы установим две сцены так, чтобы зрители видели обе. Каждая будет иметь свое освещение. Обозначим их как сцена А и Б. Первая часть представления показывается на сцене А. Тем временем сцена Б погружена в темноту, и рабочие устанавливают на ней декорации. Как только первая часть спектакля заканчивается, мы гасим свет над сценой А и включаем над сценой Б. Зрители переводят внимание на нее, и вторая часть представления немедленно начинается.
+
+В это же время рабочие, уже на неосвещенной сцене А, разбирают декорации и устанавливают новые для третьей части спектакля. Как только вторая часть заканчивается, мы вновь переносим освещение на сцену А. Мы продолжаем этот процесс на протяжении всего спектакля, используя затемненную сцену для смены декораций. Переход между частями спектакля осуществляется простым переносом освещения между сценами. Наши зрители продолжают смотреть представление без задержек. Они никогда не заметят рабочих сцены.
+
+Using a half-silvered mirror and some very smart layout, you could actually build this so that the two stages appear to the audience in the same place. As soon as the lights switch, they would be looking at a different stage, but would never have to change where they look. Building this is left as an exercise for the reader.
+
+Вернёмся к графике
+
+Именно так работает двойная буферизация, и подобный процесс лежит в основе графической системы практически любой игры, которую вы когда-нибудь видели. Вместо одного буфера кадра мы пользуемся двумя. Один из них представляет текущий кадр. Это сцена А из нашего примера, и именно его читает видеодрайвер. Сколько прочитать данных и когда - решать ему.
+
+Тем не менее не все игры и консоли так поступают. Старые консоли, у которых количество памяти ограниченно, тщательно синхронизируют графический вывод вместо обновления. Это сложно.
+
+Тем временем код отрисовки заполняет другой буфер. Это затемненная сцена Б. Как только кадр сформирован, он "переключает освещение" - меняет местами буферы. Это указывает видеодрайверу на то, что пора читать из второго буфера, вместо первого. Тем самым, переключаясь в конце обновления, мы не получим никаких разрывов и вся сцена отобразится  сразу полностью.
+
+Ну а первый буфер уже доступен для использования. Мы начинаем отрисовывать следующий кадр на нем. Вуаля!
+
+Паттерн
+
+Класс буферизации содержит буфер, который можно изменять. Этот буфер редактируется последовательно, но мы хотим, чтобы для внешнего кода эта операция была атомарной. Поэтому класс содержит два экземпляра буфера: текущий и последующий.
+
+Когда информация считывается, она берется из текущего буфера. Когда информация записывается, она попадает в последующий. Как только измнения внесены, операция Swap() тут же меняет буферы местами так, что последующий буфер становится доступным для чтения, а текущий буфер теперь может использоваться как последующий буфер.
+
+Когда его использовать? 
+
+Этот паттерн один из тех, для которых решение об его использовании принимается вами. Если у вас есть система, в которой отсутствует двойная буферизация, она, вероятно, будет неправильно отображаться (разрывы, и.т.д.) или некорректно себя вести. Но разговор о том, что решение об её использовании за вами, вряд ли вам чем-то поможет. Более конкретно, этот паттерн подходит, когда выполняются следующие четыре пункта:
+
+- у нас имеется некая структура, изменяемая последовательно;
+
+- к этой структуре может осуществляться доступ в процессе изменения;
+
+- мы не хотим, чтобы код, обращающийся к структуре, наткнулся на "ждите, операция не завершена";
+
+- мы хотим читать данные из структуры и не хотим при этом ждать, пока структура заполняется данными.
+
+На заметку
+
+В отличие от крупных архитектурных паттернов, двойная буферизация существует на более низком уровне реализации. Поэтому она оказывает меньше влияния на остальной код, большая часть игры даже не заметит разницы. Тем не менее, есть пара подводных камней.
+
+Операция Swap требует времени
+
+Эта операция необходима для двойного буфера, как только структура была изменена. Эта операция должна быть атомарной - никакой код не может получить доступ к структуре, пока swap()  не закончен. Как правило, swap() выполняется также быстро, как и присвоение указателя. Но если она занимает больше времени, чем изменение полностью всей структуры, то мы врядли чем-то себе помогли.
+
+Нам нужно два буфера
+
+Другое влияние этого паттерна заключается в использовании памяти. Оправдывая свое имя, паттерн обязывает все время хранить две копии вашей структуры в памяти. На консолях с ограниченной памятью это может вам дорогого стоить. Если два буфера для вас непозволительная роскошь, то можете рассмотреть другие варианты, которые гарантируют недоступность данных во время их изменения.
+
+Пример кода
+
+Теорию мы рассмотрели, давайте посмотрим, как это работает на практике. Мы напишем очень схематичную графическую систему, позволяющую нам закрашивать пиксели в буфере кадра. В большинстве консолей и ПК это низкоуровневая возможность, предоставляемая видеодрайвером, но это позволит нам увидеть, что происходит на самом деле. Вначале сам буфер:
+
+class Framebuffer
+
+{
+
+public:
+
+Framebuffer() { clear(); }
+
+void clear()
+
+{
+
+for (int i = 0; i < WIDTH * HEIGHT; i++)
+
+{
+
+pixels_[i] = WHITE;
+
+}
+
+}
+
+void draw(int x, int y)
+
+{
+
+pixels_[(WIDTH * y) + x] = BLACK;
+
+}
+
+const char* getPixels()
+
+{
+
+return pixels_;
+
+}
+
+private:
+
+static const int WIDTH = 160;
+
+static const int HEIGHT = 120;
+
+char pixels_[WIDTH * HEIGHT];
+
+};
+
+Класс предоставляет базовые операции: сброс всего буфера в цвет по-умолчанию, и установка цвета отдельного пикселя. Также есть метод getPixels(), для получения содержимого памяти, содержащей данные пикселей. Мы не увидим его в примере, но видеодрайвер будет вызывать этот метод очень часто, для проецирования памяти буфера на экран.
+
+Мы обернем этот буфер в класс Scene. Задачей этого класса будет рисовать путем цепочки вызовов draw() из буфера.
+
+class Scene
+
+{
+
+public:
+
+void draw()
+
+{
+
+buffer_.clear();
+
+buffer_.draw(1, 1);
+
+buffer_.draw(4, 1);
+
+buffer_.draw(1, 3);
+
+buffer_.draw(2, 4);
+
+buffer_.draw(3, 4);
+
+buffer_.draw(4, 3);
+
+}
+
+Framebuffer& getBuffer() { return buffer_; }
+
+private:
+
+Framebuffer buffer_;
+
+};
+
+Конкретно, он рисует этот шедевр:
+
+Для каждого кадра игра вызывает метод Draw класса Scene. Вначале очищается буфер, а затем прорисовывается цепочка пикселей, под одному за раз. Также возможен доступ к внутреннему буферу с помощью getBuffer(), так что видеодрайвер может его прочитать.
+
+Выглядит довольно просто, но если мы оставим все как есть, у нас будут проблемы. Беда в том, что видеодрайвер может вызвать getPixels() в любое время, даже здесь:
+
+buffer_.draw(1, 1);
+
+buffer_.draw(4, 1);
+
+// <- Видеодрайвер считывает пиксели здесь!
+
+buffer_.draw(1, 3);
+
+buffer_.draw(2, 4);
+
+buffer_.draw(3, 4);
+
+buffer_.draw(4, 3);
+
+Когда это произойдет, пользователь увидет на лице глаза, но вот рот исчезнет на этом кадре. На следующем кадре оно может прерваться в другом месте. В результате - отвратительное мерцание на экране и раздраженные пользователи.
+
+Мы исправим это с помощью двойной буферизации:
+
+class Scene
+
+{
+
+public:
+
+Scene()
+
+: current_(&buffers_[0]),
+
+next_(&buffers_[1])
+
+{}
+
+void draw()
+
+{
+
+next_->clear();
+
+next_->draw(1, 1);
+
+// ...
+
+next_->draw(4, 3);
+
+swap();
+
+}
+
+Framebuffer& getBuffer() { return *current_; }
+
+private:
+
+void swap()
+
+{
+
+// Просто меняем указатели
+
+Framebuffer* temp = current_;
+
+current_ = next_;
+
+next_ = temp;
+
+}
+
+Framebuffer buffers_[2];
+
+Framebuffer* current_;
+
+Framebuffer* next_;
+
+};
+
+Сейчас Scene содержит два буфера, в массиве buffers_. Мы не обращаемся к ним напрямую. Вместо этого у нас есть 2 члена: next_ и current_, которые указывают на этот массив. Когда мы рисуем, мы используем последующий буфер, через указатель next_. Когда видеодрайверу нужно обратиться к пикселям, он получает доступ к текущем буферу с помощью current_.
+
+Таким образом, видеодрайвер никогда не видит буфер с которым он работает. Единственным оставшимся кусочком пазла является вызов swap(), происходящий, когда отрисовка кадра закончена. Он меняет местами два буфера, просто меняя указатели next_ и current_ между собой. Теперь, когда видеодрайвер вызовет getBuffer(), он получит новый буфер, отрисовка в котором уже закончена, и отобразит его на экране. Больше никаких разрывов и неприглядных глюков.
+
+Не только для графики
+
+Основная задача, которую решает Двойной Буфер - это осуществление доступа к структуре, в то время когда она изменяется. Для этого есть два распространенных повода. Первый мы рассмотрели с примером для графики: осуществляется прямой доступ к структуре из другого потока или прерывания.
+
+Другой, не менее распространенный повод: когда код, выполняющий изменения, обращается к той же структуре, которую он изменяет. Это может проявляться в различных местах, особенно в физическом движке или искусственном интеллекте, там где у вас есть множество субъектов, взаимодействующих друг с другом. Двойная буферизация частенько необходима и здесь.
+
+Искусственный не-интеллект
+
+Скажем, мы строим поведенческую систему для всех вещей в игре, основанной на дешевом фарсе. В игре есть сцена, на которой находится куча актеров, выступающих с различными шутками и проделками. А вот основа для актера:
+
+class Actor
+
+{
+
+public:
+
+Actor() : slapped_(false) {}
+
+virtual ~Actor() {}
+
+virtual void update() = 0;
+
+void reset() { slapped_ = false; }
+
+void slap() { slapped_ = true; }
+
+bool wasSlapped() { return slapped_; }
+
+private:
+
+bool slapped_;
+
+};
+
+Это пример для паттерна "Update Method".
+
+Игра несет ответственность за вызов update() в каждом кадре, поэтому у актера есть шанс сделать что-нибудь. Важно, с точки зрения пользователей, чтобы все актеры выполнили update() одновременно.
+
+Актеры могут взаимодействовать друг с другом, а под взаимодействием мы подразумеваем, что они могут отвешивать друг другу пощечины. Во время update(), актер может вызвать slap(), чтобы дать пощечину другому актеру, и вызвать wasSlapped(), чтобы проверить - не досталось ли ему.
+
+Актерам нужна сцена, где бы они могли "взаимодействовать", давайте же ее построим:
+
+class Stage
+
+{
+
+public:
+
+void add(Actor* actor, int index) { actors_[index] = actor; }
+
+void update()
+
+{
+
+for (int i = 0; i < NUM_ACTORS; i++)
+
+{
+
+actors_[i]->update();
+
+actors_[i]->reset();
+
+}
+
+}
+
+private:
+
+static const int NUM_ACTORS = 3;
+
+Actor* actors_[NUM_ACTORS];
+
+};
+
+Класс позволяет добавлять актеров и предоставляет метод update(), который вызовет update() для каждого актера. И хотя со стороны пользователя актеры движутся одновременно, здесь они обновляются по очереди.
+
+Стоить отметить, что для каждого актера флаг "получил пощечину" убирается сразу после обновления. Связано это с тем, что игрок отвечает на пощечину один раз.
+
+Итак, продолжим - давайте определим конкректного актера как подкласс. Наш комик довольно прост. Он сталкивается с актером. И всякий раз, когда он получил пощечину, от кого-то, он отвечает пощечиной актеру, с которым столкнулся.
+
+class Comedian : public Actor
+
+{
+
+public:
+
+void face(Actor* actor) { facing_ = actor; }
+
+virtual void update()
+
+{
+
+if (wasSlapped()) facing_->slap();
+
+}
+
+private:
+
+Actor* facing_;
+
+};
+
+Теперь давай запустить комиков на сцену и посмотрим, что произойдет. Мы выставим трех комиков, сталкивая каждого со следующим. Последний столкнется с первым, и так по кругу.
+
+Stage stage;
+
+Comedian* harry = new Comedian();
+
+Comedian* baldy = new Comedian();
+
+Comedian* chump = new Comedian();
+
+harry->face(baldy);
+
+baldy->face(chump);
+
+chump->face(harry);
+
+stage.add(harry, 0);
+
+stage.add(baldy, 1);
+
+stage.add(chump, 2);
+
+Итоговая сцена выглядит приблизительно так, как показано на картинке. Стрелки показывают кто с кем столкнется, а цифрами указывается их порядковый номер на сцене.
+
+Давайте начнем с Гарри - дадим ему пощечину и посмотрим, что случиться, когда мы запустим процесс.
+
+harry->slap();
+
+stage.update();
+
+Помните, что функция update() в классе Stage обновляет каждого актера по очереди, поэтому, если мы пошагово выполним код, мы увидим следующее:
+
+- Stage вызывает update() для актера 0 (Гарри);
+
+- Гарри получил пощечину, поэтому дает ее Балди;
+
+- Stage вызывает update для актера 1 (Балди);
+
+- Балди получил пощечину, поэтому дает ее Чемпу;
+
+- Stage вызывает update для актера 2 (Чемп);
+
+- Чемп получил пощечину, поэтому дает ее Гарри;
+
+- Функция update закончена.
+
+Итак, в этом кадре наша пощечина для Гарри прошла по всем комикам. Теперь давайте всё немного поменяем. Мы сменим расположение комиков на сцене, но порядок столкновений оставим прежним.
+
+We’ll leave the rest of the stage setup alone, but replace the chunk of code where we add the actors to the stage with this:
+
+stage.add(harry, 2);
+
+stage.add(baldy, 1);
+
+stage.add(chump, 0);
+
+We’ll run our experiment again and let’s see what happens:
+
+Stage updates actor 0 (Chump)
+
+Chump was not slapped, so he does nothing
+
+Stage updates actor 1 (Baldy)
+
+Baldy was not slapped, so he does nothing
+
+Stage updates actor 2 (Harry)
+
+Harry was slapped, so he slaps Baldy
+
+Stage update ends
+
+Uh, oh. Totally different. The problem is straightforward. When we update the actors, we modify their “slapped” states, the exact same state we also read during the update. Because of this, changes to that state early in the update affect later parts of that same update step.
+
+If you continue to update the stage, you’ll see the slaps gradually cascade through the actors, one per frame. In the first frame, Harry slaps Baldy. In the next frame, Baldy slaps Chump, and so on.
+
+The ultimate result is that an actor may respond to being slapped on either the same frame as the slap or the next frame, based entirely on how the two actors happen to be ordered on the stage. This violates our requirement that actors need to appear to run in parallel: the order that they update within a single frame shouldn’t matter.
+
+Buffered slaps
+
+Fortunately, our Double Buffer pattern can help. This time, instead of having two copies of a monolithic “buffer” object, we’ll be buffering at a much finer granularity: each actor’s “slapped” state:
+
+class Actor
+
+{
+
+public:
+
+Actor() : currentSlapped_(false) {}
+
+virtual ~Actor() {}
+
+virtual void update() = 0;
+
+void swap()
+
+{
+
+// Swap the buffer.
+
+currentSlapped_ = nextSlapped_;
+
+// Clear the new "next" buffer.
+
+nextSlapped_ = false;
+
+}
+
+void slap()       { nextSlapped_ = true; }
+
+bool wasSlapped() { return currentSlapped_; }
+
+private:
+
+bool currentSlapped_;
+
+bool nextSlapped_;
+
+};
+
+Instead of a single slapped_ state, each actor now has two. Just like the previous graphics example, the current state is used for reading, and the next state is used for writing.
+
+The reset() function has been replaced with swap(). Now, right before clearing the swap state, it copies the next state into the current one, making it the new current state. This also requires a small change in Stage:
+
+class Stage
+
+{
+
+void update()
+
+{
+
+for (int i = 0; i < NUM_ACTORS; i++)
+
+{
+
+actors_[i]->update();
+
+}
+
+for (int i = 0; i < NUM_ACTORS; i++)
+
+{
+
+actors_[i]->swap();
+
+}
+
+}
+
+// Previous Stage code...
+
+};
+
+The update() function now updates all of the actors and then swaps all of their states.
+
+The end result of this is that an actor will only see a slap on the frame after it was actually slapped. This way, no matter what order they appear in the stage’s array, they will behave the same. As far as the user or any outside code can tell, all of the actors update simultaneously within a frame.
+
+Design Decisions
+
+The Double Buffer pattern is pretty straightforward, and the examples we’ve seen so far cover most of the variations you’re likely to encounter. There are two main decisions that come up when implementing it.
+
+How are the buffers swapped?
+
+The swap operation is the most critical step of the process since we must lock out all reading and modification of both buffers while it’s occurring. To get the best performance, we want this to happen as quickly as possible.
+
+Swap pointers or references to the buffer:
+
+This is how our graphics example works, and is the most common solution for double-buffering graphics.
+
+It’s fast. Regardless of how big the buffer is, the swap is simply a couple of pointer assignments. It’s hard to beat that for speed and simplicity.
+
+Prevents outside code from storing persistent pointer to buffer. This is the main limitation. Since we don’t actually move the data, what we’re essentially doing is periodically telling the rest of the codebase to look somewhere else for the buffer, like in our original stage analogy. This means that the rest of the codebase can’t store pointers directly to data within the buffer: they may be pointing at the wrong one a moment later.
+
+This can be particularly troublesome on a system where the video driver expects the framebuffer to always be at a fixed location in memory. In that case, we won’t be able to use this option.
+
+Existing data on the buffer will be from two frames ago, not the last frame. Successive frames are drawn on alternating buffers, with no data copied between them, like so:
+
+Frame 1 drawn on buffer A
+
+Frame 2 drawn on buffer B
+
+Frame 3 drawn on buffer A
+
+...
+
+You’ll note that when we go to draw the third frame, the data already on the buffer is from frame one, not the more recent second frame. In most cases, this isn’t an issue — we usually just clear the whole buffer right before drawing. But, if we intend to reuse some of the existing data on the buffer, it’s important to take into account that that data will be a frame older than we might expect.
+
+One classic use of old framebuffer data is simulating motion blur. The current frame is blended with a bit of the previously rendered frame, to make a resulting image that looks more like what a real camera captures.
+
+Copy the data between the buffers.
+
+If we can’t just repoint users to the other buffer, the only other option is to actually copy the data from the next frame to the current frame. This is how our slapstick comedians work. In that case, we chose this way because the state — a single boolean flag — doesn’t take any longer to copy than a pointer to the buffer would.
+
+Data on the next buffer is only a single frame old. This is the nice thing about copying the data as opposed to ping-ponging back and forth between the two buffers. If we need access to previous buffer data, this will give us more up-to-date data to work with.
+
+Swapping can take more time. This, of course, is the big negative point. Our swap operation now means copying the entire buffer in memory. If the buffer is large, like an entire framebuffer, it can take a significant chunk of time to do this. Since nothing can read or write to either buffer while this is happening, that’s a big limitation.
+
+What is the granularity of the buffer?
+
+The other question is how the buffer itself is organized: as a single monolithic chunk of data, or distributed among a collection of objects. Our graphics example uses the former, and the actors use the latter.
+
+Most of the time, the nature of what you’re buffering will lead to the answer, but there’s some flexibility. For example, our actors could have all stored their messages in a single message block that they all reference into by their index.
+
+If the buffer is monolithic:
+
+Swapping is simpler. Since there is only one pair of buffers, a single swap does it. If you can swap by changing pointers, then you can swap the entire buffer, regardless of size, with just a couple of assignments.
+
+If many objects have a piece of data:
+
+Swapping is slower. In order to swap, we need to iterate through the entire collection of objects, telling each one to swap.
+
+In our comedian example, that was OK since we needed to clear the next slap state anyway — every piece of buffered state needed to be touched each frame. If we don’t need to otherwise touch the old buffer, there’s a simple optimization we can do to get the same performance of a monolithic buffer while distributing the buffer across multiple objects.
+
+The idea is to get the “current” and “next” pointer concept and apply it to each of our objects by turning them into object-relative offsets. Like so:
+
+class Actor
+
+{
+
+public:
+
+static void init() { current_ = 0; }
+
+static void swap() { current_ = next(); }
+
+void slap()        { slapped_[next()] = true; }
+
+bool wasSlapped()  { return slapped_[current_]; }
+
+private:
+
+static int current_;
+
+static int next()  { return 1 - current_; }
+
+bool slapped_[2];
+
+};
+
+Actors access their current slap state by using current_ to index into the state array. The next state is always the other index in the array, so we can calculate that with next(). Swapping the state just alternates the current_ index. The clever bit is that swap() is now a static function: it only needs to be called once, and every actor’s state will be swapped.
+
+See Also
+
+You can find this pattern in use in almost every graphics API out there. OpenGL has swapBuffers(). Microsoft’s XNA framework swaps the framebuffers within its endDraw() function.
+
+Переведено на Нотабеноиде
+http://notabenoid.com/book/51192/215217
+
+Переводчики: RSlafka, kSky7000, Deo, kabanov
+
